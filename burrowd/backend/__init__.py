@@ -55,7 +55,7 @@ class Backend(burrowd.Module):
     def get_messages(self, account, queue, filters={}):
         return []
 
-    def update_messages(self, account, queue, ttl, hide, filters={}):
+    def update_messages(self, account, queue, attributes={}, filters={}):
         return []
 
     def delete_message(self, account, queue, message_id):
@@ -64,10 +64,10 @@ class Backend(burrowd.Module):
     def get_message(self, account, queue, message_id):
         return None
 
-    def put_message(self, account, queue, message_id, ttl, hide, body):
+    def put_message(self, account, queue, message_id, body, attributes={}):
         return True
 
-    def update_message(self, account, queue, message_id, ttl, hide):
+    def update_message(self, account, queue, message_id, attributes={}):
         return None
 
     def clean(self):

@@ -160,9 +160,9 @@ class Frontend(burrowd.frontend.Frontend):
     @webob.dec.wsgify
     @queue_exists
     def _post_queue(self, req, account, queue):
-        ttl, hide = self._parse_metadata(req)
+        attributes = self._parse_attributes(req)
         filters = self._parse_filters(req)
-        messages = self.backend.update_messages(account, queue, ttl, hide,
+        messages = self.backend.update_messages(account, queue, attributes,
             filters)
         return self._return_messages(req, account, queue, messages, 'all')
 
@@ -185,19 +185,19 @@ class Frontend(burrowd.frontend.Frontend):
     @webob.dec.wsgify
     @queue_exists
     def _post_message(self, req, account, queue, message_id):
-        ttl, hide = self._parse_metadata(req)
-        message = self.backend.update_message(account, queue, message_id, ttl,
-                                              hide)
+        attributes = self._parse_attributes(req)
+        message = self.backend.update_message(account, queue, message_id,
+            attributes)
         if message is None:
             return webob.exc.HTTPNotFound()
         return self._return_message(req, account, queue, message, 'id')
 
     @webob.dec.wsgify
     def _put_message(self, req, account, queue, message_id):
-        (ttl, hide) = self._parse_metadata(req, self.default_ttl,
-                                           self.default_hide)
-        if self.backend.put_message(account, queue, message_id, ttl, hide, \
-                                    req.body):
+        attributes = self._parse_attributes(req, self.default_ttl,
+            self.default_hide)
+        if self.backend.put_message(account, queue, message_id, req.body,
+            attributes):
             return webob.exc.HTTPCreated()
         return webob.exc.HTTPNoContent()
 
@@ -246,20 +246,23 @@ class Frontend(burrowd.frontend.Frontend):
             filters['match_hidden'] = True
         return filters
 
-    def _parse_metadata(self, req, default_ttl=None, default_hide=None):
+    def _parse_attributes(self, req, default_ttl=None, default_hide=None):
+        attributes = {}
         if 'ttl' in req.params:
             ttl = int(req.params['ttl'])
         else:
             ttl = default_ttl
         if ttl is not None and ttl > 0:
             ttl += int(time.time())
+        attributes['ttl'] = ttl
         if 'hide' in req.params:
             hide = int(req.params['hide'])
         else:
             hide = default_hide
         if hide is not None and hide > 0:
             hide += int(time.time())
-        return ttl, hide
+        attributes['hide'] = hide
+        return attributes
 
 
 class WSGILog(object):

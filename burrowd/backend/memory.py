@@ -53,8 +53,8 @@ class Backend(burrowd.backend.Backend):
     def get_messages(self, account, queue, filters={}):
         return self._scan_queue(account, queue, filters)
 
-    def update_messages(self, account, queue, ttl, hide, filters={}):
-        return self._scan_queue(account, queue, filters, ttl=ttl, hide=hide)
+    def update_messages(self, account, queue, attributes={}, filters={}):
+        return self._scan_queue(account, queue, filters, attributes=attributes)
 
     def delete_message(self, account, queue, message_id):
         for index in range(0, len(self.accounts[account][queue])):
@@ -75,11 +75,13 @@ class Backend(burrowd.backend.Backend):
                 return message
         return None
 
-    def put_message(self, account, queue, message_id, ttl, hide, body):
+    def put_message(self, account, queue, message_id, body, attributes={}):
         if account not in self.accounts:
             self.accounts[account] = {}
         if queue not in self.accounts[account]:
             self.accounts[account][queue] = []
+        ttl = attributes.get('ttl', None)
+        hide = attributes.get('hide', None)
         for index in range(0, len(self.accounts[account][queue])):
             message = self.accounts[account][queue][index]
             if message['id'] == message_id:
@@ -94,7 +96,9 @@ class Backend(burrowd.backend.Backend):
         self.notify(account, queue)
         return True
 
-    def update_message(self, account, queue, message_id, ttl, hide):
+    def update_message(self, account, queue, message_id, attributes={}):
+        ttl = attributes.get('ttl', None)
+        hide = attributes.get('hide', None)
         for index in range(0, len(self.accounts[account][queue])):
             message = self.accounts[account][queue][index]
             if message['id'] == message_id:
@@ -131,7 +135,7 @@ class Backend(burrowd.backend.Backend):
             if len(self.accounts[account]) == 0:
                 del self.accounts[account]
 
-    def _scan_queue(self, account, queue, filters, ttl=None, hide=None,
+    def _scan_queue(self, account, queue, filters, attributes={},
         delete=False):
         index = 0
         notify = False
@@ -149,6 +153,8 @@ class Backend(burrowd.backend.Backend):
         total = len(self.accounts[account][queue])
         limit = filters.get('limit', None)
         match_hidden = filters.get('match_hidden', False)
+        ttl = attributes.get('ttl', None)
+        hide = attributes.get('hide', None)
         while index < total:
             message = self.accounts[account][queue][index]
             if not match_hidden and message['hide'] != 0:

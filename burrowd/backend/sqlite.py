@@ -114,10 +114,12 @@ class Backend(burrowd.backend.Backend):
                 body=row[3]))
         return messages
 
-    def update_messages(self, account, queue, ttl, hide, filters={}):
+    def update_messages(self, account, queue, attributes={}, filters={}):
         messages = self.get_messages(account, queue, filters)
         query = "UPDATE messages SET"
         comma = ''
+        ttl = attributes.get('ttl', None)
+        hide = attributes.get('hide', None)
         if ttl is not None:
             query += "%s ttl=%d" % (comma, ttl)
             comma = ','
@@ -162,7 +164,7 @@ class Backend(burrowd.backend.Backend):
         row = result[0]
         return dict(id=row[0], ttl=row[1], hide=row[2], body=row[3])
 
-    def put_message(self, account, queue, message_id, ttl, hide, body):
+    def put_message(self, account, queue, message_id, body, attributes):
         query = "SELECT rowid FROM queues " \
             "WHERE account='%s' AND queue='%s'" % (account, queue)
         result = self.db.execute(query).fetchall()
@@ -174,6 +176,8 @@ class Backend(burrowd.backend.Backend):
         query = "SELECT rowid FROM messages WHERE queue=%d AND name='%s'" % \
             (rowid, message_id)
         result = self.db.execute(query).fetchall()
+        ttl = attributes.get('ttl', None)
+        hide = attributes.get('hide', None)
         if len(result) == 0:
             query = "INSERT INTO messages VALUES (%d, '%s', %d, %d, '%s')" % \
                 (rowid, message_id, ttl, hide, body)
@@ -187,12 +191,14 @@ class Backend(burrowd.backend.Backend):
             self.notify(account, queue)
         return False
 
-    def update_message(self, account, queue, message_id, ttl, hide):
+    def update_message(self, account, queue, message_id, attributes):
         message = self.get_message(account, queue, message_id)
         if message is None:
             return None
         query = "UPDATE messages SET"
         comma = ''
+        ttl = attributes.get('ttl', None)
+        hide = attributes.get('hide', None)
         if ttl is not None:
             query += "%s ttl=%d" % (comma, ttl)
             comma = ','
