@@ -52,16 +52,16 @@ class Backend(burrowd.Module):
     def update_messages(self, account, queue, attributes={}, filters={}):
         return []
 
-    def create_message(self, account, queue, message_id, body, attributes={}):
+    def create_message(self, account, queue, message, body, attributes={}):
         return True
 
-    def delete_message(self, account, queue, message_id):
+    def delete_message(self, account, queue, message):
         return None
 
-    def get_message(self, account, queue, message_id):
+    def get_message(self, account, queue, message):
         return None
 
-    def update_message(self, account, queue, message_id, attributes={}):
+    def update_message(self, account, queue, message, attributes={}):
         return None
 
     def notify(self, account, queue):

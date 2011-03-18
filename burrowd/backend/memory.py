@@ -32,17 +32,17 @@ class Backend(burrowd.backend.Backend):
         self.accounts = Accounts()
 
     def delete_accounts(self, filters={}):
-        self.accounts.clear()
+        self.accounts.delete(filters)
 
     def get_accounts(self, filters={}):
         for account in self.accounts.iter(filters):
             yield account[0]
 
     def delete_queues(self, account, filters={}):
-        self.accounts.remove(account)
+        self.accounts.delete_queues(account, filters)
 
     def get_queues(self, account, filters={}):
-        for queue in self.accounts.iter_queue(account, filters):
+        for queue in self.accounts.iter_queues(account, filters):
             yield queue[0]
 
     def delete_messages(self, account, queue, filters={}):
@@ -54,58 +54,55 @@ class Backend(burrowd.backend.Backend):
     def update_messages(self, account, queue, attributes={}, filters={}):
         return self._scan_queue(account, queue, filters, attributes)
 
-    def create_message(self, account, queue, message_id, body, attributes={}):
+    def create_message(self, account, queue, message, body, attributes={}):
         account, queue = self.accounts.get_queue(account, queue, True)
         ttl = attributes.get('ttl', None)
         hide = attributes.get('hide', None)
         for index in xrange(0, len(queue[3])):
-            message = queue[3][index]
-            if message['id'] == message_id:
+            if queue[3][index]['id'] == message:
+                message = queue[3][index]
                 message['ttl'] = ttl
                 message['hide'] = hide
                 message['body'] = body
                 if hide == 0:
                     self.notify(account[0], queue[0])
                 return False
-        message = dict(id=message_id, ttl=ttl, hide=hide, body=body)
+        message = dict(id=message, ttl=ttl, hide=hide, body=body)
         queue[3].append(message)
         self.notify(account[0], queue[0])
         return True
 
-    def delete_message(self, account, queue, message_id):
+    def delete_message(self, account, queue, message):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             return None
         for index in xrange(0, len(queue[3])):
-            message = queue[3][index]
-            if message['id'] == message_id:
+            if queue[3][index]['id'] == message:
+                message = queue[3][index]
                 del queue[3][index]
                 if len(queue[3]) == 0:
-                    account[3].remove(queue[0])
-                if account[3].count() == 0:
-                    self.accounts.remove(account[0])
+                    self.accounts.delete_queue(account[0], queue[0])
                 return message
         return None
 
-    def get_message(self, account, queue, message_id):
+    def get_message(self, account, queue, message):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             return None
         for index in xrange(0, len(queue[3])):
-            message = queue[3][index]
-            if message['id'] == message_id:
-                return message
+            if queue[3][index]['id'] == message:
+                return queue[3][index]
         return None
 
-    def update_message(self, account, queue, message_id, attributes={}):
+    def update_message(self, account, queue, message, attributes={}):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             return None
         ttl = attributes.get('ttl', None)
         hide = attributes.get('hide', None)
         for index in xrange(0, len(queue[3])):
-            message = queue[3][index]
-            if message['id'] == message_id:
+            if queue[3][index]['id'] == message:
+                message = queue[3][index]
                 if ttl is not None:
                     message['ttl'] = ttl
                 if hide is not None:
@@ -135,15 +132,13 @@ class Backend(burrowd.backend.Backend):
                 if notify:
                     self.notify(account[0], queue[0])
                 if len(queue[3]) == 0:
-                    account[3].remove(queue[0])
-            if account[3].count() == 0:
-                self.accounts.remove(account[0])
+                    self.accounts.delete_queue(account[0], queue[0])
 
     def _scan_queue(self, account, queue, filters, attributes={},
         delete=False):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
-            return []
+            return
         index = 0
         notify = False
         if 'marker' in filters and filters['marker'] is not None:
@@ -178,7 +173,7 @@ class Backend(burrowd.backend.Backend):
                 total -= 1
             else:
                 index += 1
-            messages.append(message)
+            yield message
             if limit:
                 limit -= 1
                 if limit == 0:
@@ -186,10 +181,7 @@ class Backend(burrowd.backend.Backend):
         if notify:
             self.notify(account[0], queue[0])
         if len(queue[3]) == 0:
-            account[3].remove(queue[0])
-        if account[3].count() == 0:
-            self.accounts.remove(account[0])
-        return messages
+            self.accounts.delete_queue(account[0], queue[0])
 
 
 class IndexedTupleList(object):
@@ -202,10 +194,42 @@ class IndexedTupleList(object):
         self.last = None
         self.index = {}
 
-    def clear(self):
-        self.first = None
-        self.last = None
-        self.index.clear()
+    def add(self, item):
+        item = (item[0], None, self.last) + item[3:]
+        if self.first is None:
+            self.first = item
+        self.last = item
+        self.index[item[0]] = item
+        return item
+
+    def count(self):
+        return len(self.index)
+
+    def delete(self, filters):
+        if len(filters) == 0:
+            self.first = None
+            self.last = None
+            self.index.clear()
+            return
+        for item in self.iter(filters):
+            self.delete_item(item[0])
+
+    def delete_item(self, name):
+        if name not in self.index:
+            return
+        item = self.index[name][1]
+        if item is not None:
+            prev_item = self.index[name][2]
+            self.index[item[0]] = (item[0], item[1], prev_item) + item[3:]
+        item = self.index[name][2]
+        if item is not None:
+            next_item = self.index[name][1]
+            self.index[item[0]] = (item[0], next_item, item[2]) + item[3:]
+        if self.first == self.index[name]:
+            self.first = self.index[name][1]
+        if self.last == self.index[name]:
+            self.last = self.index[name][2]
+        del self.index[name]
 
     def get(self, name):
         if name in self.index:
@@ -227,36 +251,22 @@ class IndexedTupleList(object):
                     break
             item = item[1]
 
-    def add(self, item):
-        item = (item[0], None, self.last) + item[3:]
-        if self.first is None:
-            self.first = item
-        self.last = item
-        self.index[item[0]] = item
-        return item
-
-    def remove(self, name):
-        if name not in self.index:
-            return
-        item = self.index[name][1]
-        if item is not None:
-            prev_item = self.index[name][2]
-            self.index[item[0]] = (item[0], item[1], prev_item) + item[3:]
-        item = self.index[name][2]
-        if item is not None:
-            next_item = self.index[name][1]
-            self.index[item[0]] = (item[0], next_item, item[2]) + item[3:]
-        if self.first == self.index[name]:
-            self.first = self.index[name][1]
-        if self.last == self.index[name]:
-            self.last = self.index[name][2]
-        del self.index[name]
-
-    def count(self):
-        return len(self.index)
-
 
 class Accounts(IndexedTupleList):
+
+    def delete_queue(self, account, queue):
+        account = self.get(account)
+        if account is not None:
+            account[3].delete_item(queue)
+            if account[3].count() == 0:
+                self.delete_item(account[0])
+
+    def delete_queues(self, account, filters):
+        account = self.get(account)
+        if account is not None:
+            account[3].delete(filters)
+            if account[3].count() == 0:
+                self.delete_item(account[0])
 
     def get_queue(self, account, queue, create=False):
         if account in self.index:
@@ -267,7 +277,7 @@ class Accounts(IndexedTupleList):
             return None, None
         return account, account[3].get(queue, create)
 
-    def iter_queue(self, account, filters={}):
+    def iter_queues(self, account, filters={}):
         account = self.get(account)
         if account is not None:
             for queue in account[3].iter(filters):

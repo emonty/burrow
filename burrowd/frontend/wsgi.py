@@ -71,7 +71,7 @@ class Frontend(burrowd.frontend.Frontend):
         mapper.connect('/', action='root')
         mapper.connect('/{account}', action='account')
         mapper.connect('/{account}/{queue}', action='queue')
-        mapper.connect('/{account}/{queue}/{message_id}', action='message')
+        mapper.connect('/{account}/{queue}/{message}', action='message')
         self._routes = routes.middleware.RoutesMiddleware(self._route, mapper)
 
     def run(self, thread_pool):
@@ -171,33 +171,33 @@ class Frontend(burrowd.frontend.Frontend):
         return self._return_messages(req, account, queue, messages, 'all')
 
     @webob.dec.wsgify
-    def _delete_message(self, req, account, queue, message_id):
-        message = self.backend.delete_message(account, queue, message_id)
+    def _delete_message(self, req, account, queue, message):
+        message = self.backend.delete_message(account, queue, message)
         if message is None:
             return webob.exc.HTTPNotFound()
         return self._return_message(req, account, queue, message, 'none')
 
     @webob.dec.wsgify
-    def _get_message(self, req, account, queue, message_id):
-        message = self.backend.get_message(account, queue, message_id)
+    def _get_message(self, req, account, queue, message):
+        message = self.backend.get_message(account, queue, message)
         if message is None:
             return webob.exc.HTTPNotFound()
         return self._return_message(req, account, queue, message, 'all')
 
     @webob.dec.wsgify
-    def _post_message(self, req, account, queue, message_id):
+    def _post_message(self, req, account, queue, message):
         attributes = self._parse_attributes(req)
-        message = self.backend.update_message(account, queue, message_id,
+        message = self.backend.update_message(account, queue, message,
             attributes)
         if message is None:
             return webob.exc.HTTPNotFound()
         return self._return_message(req, account, queue, message, 'id')
 
     @webob.dec.wsgify
-    def _put_message(self, req, account, queue, message_id):
+    def _put_message(self, req, account, queue, message):
         attributes = self._parse_attributes(req, self.default_ttl,
             self.default_hide)
-        if self.backend.create_message(account, queue, message_id, req.body,
+        if self.backend.create_message(account, queue, message, req.body,
             attributes):
             return webob.exc.HTTPCreated()
         return webob.exc.HTTPNoContent()

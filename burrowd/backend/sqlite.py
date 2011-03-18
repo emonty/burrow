@@ -113,7 +113,7 @@ class Backend(burrowd.backend.Backend):
         self.notify(account, queue)
         return messages
 
-    def create_message(self, account, queue, message_id, body, attributes):
+    def create_message(self, account, queue, message, body, attributes):
         query = "SELECT rowid FROM queues " \
             "WHERE account='%s' AND queue='%s'" % (account, queue)
         result = self.db.execute(query).fetchall()
@@ -123,13 +123,13 @@ class Backend(burrowd.backend.Backend):
         else:
             rowid = result[0][0]
         query = "SELECT rowid FROM messages WHERE queue=%d AND name='%s'" % \
-            (rowid, message_id)
+            (rowid, message)
         result = self.db.execute(query).fetchall()
         ttl = attributes.get('ttl', None)
         hide = attributes.get('hide', None)
         if len(result) == 0:
             query = "INSERT INTO messages VALUES (%d, '%s', %d, %d, '%s')" % \
-                (rowid, message_id, ttl, hide, body)
+                (rowid, message, ttl, hide, body)
             self.db.execute(query)
             self.notify(account, queue)
             return True
@@ -140,15 +140,15 @@ class Backend(burrowd.backend.Backend):
             self.notify(account, queue)
         return False
 
-    def delete_message(self, account, queue, message_id):
+    def delete_message(self, account, queue, message):
         rowid = self._get_queue(account, queue)
         if rowid is None:
             return None
-        message = self.get_message(account, queue, message_id)
+        message = self.get_message(account, queue, message)
         if message is None:
             return None
         query = "DELETE FROM messages WHERE queue=%d AND name='%s'" % \
-            (rowid, message_id)
+            (rowid, message['id'])
         self.db.execute(query)
         query = "SELECT rowid FROM messages WHERE queue=%d LIMIT 1" % rowid
         if len(self.db.execute(query).fetchall()) == 0:
@@ -156,23 +156,23 @@ class Backend(burrowd.backend.Backend):
             self.db.execute(query)
         return message
 
-    def get_message(self, account, queue, message_id):
+    def get_message(self, account, queue, message):
         rowid = self._get_queue(account, queue)
         if rowid is None:
             return None
         query = "SELECT name,ttl,hide,body FROM messages " \
-            "WHERE queue=%d AND name='%s'" % (rowid, message_id)
+            "WHERE queue=%d AND name='%s'" % (rowid, message)
         result = self.db.execute(query).fetchall()
         if len(result) == 0:
             return None
         row = result[0]
         return dict(id=row[0], ttl=row[1], hide=row[2], body=row[3])
 
-    def update_message(self, account, queue, message_id, attributes):
+    def update_message(self, account, queue, message, attributes):
         rowid = self._get_queue(account, queue)
         if rowid is None:
             return None
-        message = self.get_message(account, queue, message_id)
+        message = self.get_message(account, queue, message)
         if message is None:
             return None
         query = "UPDATE messages SET"
@@ -187,7 +187,7 @@ class Backend(burrowd.backend.Backend):
             comma = ','
         if comma == '':
             return message
-        query += " WHERE queue=%d AND name='%s'" % (rowid, message_id)
+        query += " WHERE queue=%d AND name='%s'" % (rowid, message['id'])
         self.db.execute(query)
         if hide == 0:
             self.notify(account, queue)
