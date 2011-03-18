@@ -31,28 +31,16 @@ class Backend(burrowd.Module):
         separate threads and should never block.'''
         thread_pool.spawn_n(self._clean)
 
-    def _clean(self):
-        '''Thread to run the clean method periodically.'''
-        while True:
-            self.clean()
-            eventlet.sleep(1)
-
-    def clean(self):
-        '''This method should remove all messages with an expired
-        TTL and make hidden messages that have an expired hide time
-        visible again.'''
+    def delete_accounts(self, filters={}):
         pass
 
-    def delete_accounts(self):
-        pass
-
-    def get_accounts(self):
+    def get_accounts(self, filters={}):
         return []
 
-    def delete_account(self, account):
+    def delete_queues(self, account, filters={}):
         pass
 
-    def get_queues(self, account):
+    def get_queues(self, account, filters={}):
         return []
 
     def delete_messages(self, account, queue, filters={}):
@@ -64,14 +52,14 @@ class Backend(burrowd.Module):
     def update_messages(self, account, queue, attributes={}, filters={}):
         return []
 
+    def create_message(self, account, queue, message_id, body, attributes={}):
+        return True
+
     def delete_message(self, account, queue, message_id):
         return None
 
     def get_message(self, account, queue, message_id):
         return None
-
-    def put_message(self, account, queue, message_id, body, attributes={}):
-        return True
 
     def update_message(self, account, queue, message_id, attributes={}):
         return None
@@ -94,3 +82,15 @@ class Backend(burrowd.Module):
             pass
         if self.queues[queue].getting() == 0:
             del self.queues[queue]
+
+    def clean(self):
+        '''This method should remove all messages with an expired
+        TTL and make hidden messages that have an expired hide time
+        visible again.'''
+        pass
+
+    def _clean(self):
+        '''Thread to run the clean method periodically.'''
+        while True:
+            self.clean()
+            eventlet.sleep(1)

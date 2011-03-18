@@ -39,9 +39,9 @@ DEFAULT_HIDE = 0
 
 
 def wait_on_queue(method):
-    '''Decorator to ensure an account and queue exists. If the wait
-    option is given, this will block until a message in the queue is
-    ready or the timeout expires.'''
+    '''Decorator to wait on an account/queue if the wait option is
+    given. This will block until a message in the queue is ready or
+    the timeout expires.'''
     def wrapper(self, req, account, queue, *args, **kwargs):
         wait = 0
         if 'wait' in req.params:
@@ -119,24 +119,28 @@ class Frontend(burrowd.frontend.Frontend):
 
     @webob.dec.wsgify
     def _delete_root(self, req):
-        self.backend.delete_accounts()
+        filters = self._parse_filters(req)
+        self.backend.delete_accounts(filters)
         return webob.exc.HTTPNoContent()
 
     @webob.dec.wsgify
     def _get_root(self, req):
-        accounts = self.backend.get_accounts()
+        filters = self._parse_filters(req)
+        accounts = [account for account in self.backend.get_accounts(filters)]
         if len(accounts) == 0:
             return webob.exc.HTTPNotFound()
         return webob.exc.HTTPOk(body=json.dumps(accounts, indent=2))
 
     @webob.dec.wsgify
     def _delete_account(self, req, account):
-        self.backend.delete_account(account)
+        filters = self._parse_filters(req)
+        self.backend.delete_queues(account, filters)
         return webob.exc.HTTPNoContent()
 
     @webob.dec.wsgify
     def _get_account(self, req, account):
-        queues = self.backend.get_queues(account)
+        filters = self._parse_filters(req)
+        queues = [queue for queue in self.backend.get_queues(account, filters)]
         if len(queues) == 0:
             return webob.exc.HTTPNotFound()
         return webob.exc.HTTPOk(body=json.dumps(queues, indent=2))
@@ -145,14 +149,16 @@ class Frontend(burrowd.frontend.Frontend):
     @wait_on_queue
     def _delete_queue(self, req, account, queue):
         filters = self._parse_filters(req)
-        messages = self.backend.delete_messages(account, queue, filters)
+        messages = [message for message in
+            self.backend.delete_messages(account, queue, filters)]
         return self._return_messages(req, account, queue, messages, 'none')
 
     @webob.dec.wsgify
     @wait_on_queue
     def _get_queue(self, req, account, queue):
         filters = self._parse_filters(req)
-        messages = self.backend.get_messages(account, queue, filters)
+        messages = [message for message in
+            self.backend.get_messages(account, queue, filters)]
         return self._return_messages(req, account, queue, messages, 'all')
 
     @webob.dec.wsgify
@@ -160,8 +166,8 @@ class Frontend(burrowd.frontend.Frontend):
     def _post_queue(self, req, account, queue):
         attributes = self._parse_attributes(req)
         filters = self._parse_filters(req)
-        messages = self.backend.update_messages(account, queue, attributes,
-            filters)
+        messages = [message for message in
+            self.backend.update_messages(account, queue, attributes, filters)]
         return self._return_messages(req, account, queue, messages, 'all')
 
     @webob.dec.wsgify
@@ -191,7 +197,7 @@ class Frontend(burrowd.frontend.Frontend):
     def _put_message(self, req, account, queue, message_id):
         attributes = self._parse_attributes(req, self.default_ttl,
             self.default_hide)
-        if self.backend.put_message(account, queue, message_id, req.body,
+        if self.backend.create_message(account, queue, message_id, req.body,
             attributes):
             return webob.exc.HTTPCreated()
         return webob.exc.HTTPNoContent()
