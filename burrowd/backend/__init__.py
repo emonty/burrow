@@ -27,12 +27,21 @@ class Backend(burrowd.Module):
         self.queues = {}
 
     def run(self, thread_pool):
+        '''Run the backend. This should start any periodic tasks in
+        separate threads and should never block.'''
         thread_pool.spawn_n(self._clean)
 
     def _clean(self):
+        '''Thread to run the clean method periodically.'''
         while True:
             self.clean()
             eventlet.sleep(1)
+
+    def clean(self):
+        '''This method should remove all messages with an expired
+        TTL and make hidden messages that have an expired hide time
+        visible again.'''
+        pass
 
     def delete_accounts(self):
         pass
@@ -45,9 +54,6 @@ class Backend(burrowd.Module):
 
     def get_queues(self, account):
         return []
-
-    def queue_exists(self, account, queue):
-        return False
 
     def delete_messages(self, account, queue, filters={}):
         return []
@@ -70,18 +76,15 @@ class Backend(burrowd.Module):
     def update_message(self, account, queue, message_id, attributes={}):
         return None
 
-    def clean(self):
-        '''This method should remove all messages with an expired
-        TTL and make hidden messages that have an expired hide time
-        visible again.'''
-        pass
-
     def notify(self, account, queue):
+        '''Notify any waiting callers that the account/queue has
+        a visible message.'''
         queue = '%s/%s' % (account, queue)
         if queue in self.queues:
             self.queues[queue].put(0)
 
     def wait(self, account, queue, seconds):
+        '''Wait for a message to appear in the account/queue.'''
         queue = '%s/%s' % (account, queue)
         if queue not in self.queues:
             self.queues[queue] = eventlet.Queue()

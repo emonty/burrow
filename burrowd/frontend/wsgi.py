@@ -38,7 +38,7 @@ DEFAULT_TTL = 600
 DEFAULT_HIDE = 0
 
 
-def queue_exists(method):
+def wait_on_queue(method):
     '''Decorator to ensure an account and queue exists. If the wait
     option is given, this will block until a message in the queue is
     ready or the timeout expires.'''
@@ -48,10 +48,8 @@ def queue_exists(method):
             wait = int(req.params['wait'])
             if wait > 0:
                 wait += time.time()
-        res = webob.exc.HTTPNotFound()
         while True:
-            if self.backend.queue_exists(account, queue):
-                res = method(self, req, account, queue, *args, **kwargs)
+            res = method(self, req, account, queue, *args, **kwargs)
             if wait == 0 or res.status_int != 404:
                 break
             now = time.time()
@@ -144,21 +142,21 @@ class Frontend(burrowd.frontend.Frontend):
         return webob.exc.HTTPOk(body=json.dumps(queues, indent=2))
 
     @webob.dec.wsgify
-    @queue_exists
+    @wait_on_queue
     def _delete_queue(self, req, account, queue):
         filters = self._parse_filters(req)
         messages = self.backend.delete_messages(account, queue, filters)
         return self._return_messages(req, account, queue, messages, 'none')
 
     @webob.dec.wsgify
-    @queue_exists
+    @wait_on_queue
     def _get_queue(self, req, account, queue):
         filters = self._parse_filters(req)
         messages = self.backend.get_messages(account, queue, filters)
         return self._return_messages(req, account, queue, messages, 'all')
 
     @webob.dec.wsgify
-    @queue_exists
+    @wait_on_queue
     def _post_queue(self, req, account, queue):
         attributes = self._parse_attributes(req)
         filters = self._parse_filters(req)
@@ -167,7 +165,6 @@ class Frontend(burrowd.frontend.Frontend):
         return self._return_messages(req, account, queue, messages, 'all')
 
     @webob.dec.wsgify
-    @queue_exists
     def _delete_message(self, req, account, queue, message_id):
         message = self.backend.delete_message(account, queue, message_id)
         if message is None:
@@ -175,7 +172,6 @@ class Frontend(burrowd.frontend.Frontend):
         return self._return_message(req, account, queue, message, 'none')
 
     @webob.dec.wsgify
-    @queue_exists
     def _get_message(self, req, account, queue, message_id):
         message = self.backend.get_message(account, queue, message_id)
         if message is None:
@@ -183,7 +179,6 @@ class Frontend(burrowd.frontend.Frontend):
         return self._return_message(req, account, queue, message, 'all')
 
     @webob.dec.wsgify
-    @queue_exists
     def _post_message(self, req, account, queue, message_id):
         attributes = self._parse_attributes(req)
         message = self.backend.update_message(account, queue, message_id,

@@ -32,17 +32,17 @@ class Backend(burrowd.backend.Backend):
         return self.accounts.keys()
 
     def delete_account(self, account):
-        del self.accounts[account]
+        if account in self.accounts:
+            del self.accounts[account]
 
     def get_queues(self, account):
-        if account not in self.accounts:
-            return []
-        return self.accounts[account].keys()
-
-    def queue_exists(self, account, queue):
-        return account in self.accounts and queue in self.accounts[account]
+        if account in self.accounts:
+            return self.accounts[account].keys()
+        return []
 
     def delete_messages(self, account, queue, filters={}):
+        if account not in self.accounts or queue not in self.accounts[account]:
+            return []
         messages = self._scan_queue(account, queue, filters, delete=True)
         if len(self.accounts[account][queue]) == 0:
             del self.accounts[account][queue]
@@ -57,6 +57,8 @@ class Backend(burrowd.backend.Backend):
         return self._scan_queue(account, queue, filters, attributes=attributes)
 
     def delete_message(self, account, queue, message_id):
+        if account not in self.accounts or queue not in self.accounts[account]:
+            return None
         for index in range(0, len(self.accounts[account][queue])):
             message = self.accounts[account][queue][index]
             if message['id'] == message_id:
@@ -69,6 +71,8 @@ class Backend(burrowd.backend.Backend):
         return None
 
     def get_message(self, account, queue, message_id):
+        if account not in self.accounts or queue not in self.accounts[account]:
+            return None
         for index in range(0, len(self.accounts[account][queue])):
             message = self.accounts[account][queue][index]
             if message['id'] == message_id:
@@ -97,6 +101,8 @@ class Backend(burrowd.backend.Backend):
         return True
 
     def update_message(self, account, queue, message_id, attributes={}):
+        if account not in self.accounts or queue not in self.accounts[account]:
+            return None
         ttl = attributes.get('ttl', None)
         hide = attributes.get('hide', None)
         for index in range(0, len(self.accounts[account][queue])):
@@ -137,6 +143,8 @@ class Backend(burrowd.backend.Backend):
 
     def _scan_queue(self, account, queue, filters, attributes={},
         delete=False):
+        if account not in self.accounts or queue not in self.accounts[account]:
+            return []
         index = 0
         notify = False
         if 'marker' in filters and filters['marker'] is not None:
