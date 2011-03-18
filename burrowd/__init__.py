@@ -26,7 +26,7 @@ import burrowd.config
 
 # This installs the _(...) function as a built-in so all other modules
 # don't need to.
-gettext.install('burrowd')
+gettext.install('burrow')
 
 # Default configuration values for this module.
 DEFAULT_BACKEND = 'burrowd.backend.sqlite'
