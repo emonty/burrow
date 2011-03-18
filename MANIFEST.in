@@ -1,4 +1,6 @@
 graft etc
+graft locale
 include Authors
 include ChangeLog
 include LICENSE
+include README

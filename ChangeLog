@@ -1,4 +1,8 @@
 2011-03-17  Eric Day  <eday@oddments.org>
 
+	First chunk of code from prototype. Beyond the prototype, configuration, module loading, and log handling was added.
+
+2011-03-17  Eric Day  <eday@oddments.org>
+
 	Created new burrow trunk.
 
