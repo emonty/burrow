@@ -49,14 +49,13 @@ class Backend(burrowd.Module):
     def queue_exists(self, account, queue):
         return False
 
-    def delete_messages(self, account, queue, limit, marker, match_hidden):
+    def delete_messages(self, account, queue, filters={}):
         return []
 
-    def get_messages(self, account, queue, limit, marker, match_hidden):
+    def get_messages(self, account, queue, filters={}):
         return []
 
-    def update_messages(self, account, queue, limit, marker, match_hidden, ttl,
-                        hide):
+    def update_messages(self, account, queue, ttl, hide, filters={}):
         return []
 
     def delete_message(self, account, queue, message_id):

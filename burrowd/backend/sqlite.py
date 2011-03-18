@@ -77,9 +77,8 @@ class Backend(burrowd.backend.Backend):
         self.rowid = result[0][0]
         return True
 
-    def delete_messages(self, account, queue, limit, marker, match_hidden):
-        messages = self.get_messages(account, queue, limit, marker,
-            match_hidden)
+    def delete_messages(self, account, queue, filters={}):
+        messages = self.get_messages(account, queue, filters)
         ids = [message['id'] for message in messages]
         query = "DELETE FROM messages WHERE queue=%d AND name IN (%s)" % \
             (self.rowid, ','.join(ids))
@@ -91,24 +90,23 @@ class Backend(burrowd.backend.Backend):
             self.db.execute(query)
         return messages
 
-    def get_messages(self, account, queue, limit, marker, match_hidden):
-        if marker is not None:
+    def get_messages(self, account, queue, filters={}):
+        marker = None
+        if 'marker' in filters and filters['marker'] is not None:
             query = "SELECT rowid FROM messages " \
                 "WHERE queue=%d AND name='%s'" % \
-                (self.rowid, marker)
+                (self.rowid, filters['marker'])
             result = self.db.execute(query).fetchall()
-            if len(result) == 0:
-                marker = None
-            else:
+            if len(result) > 0:
                 marker = result[0][0]
         query = "SELECT name,ttl,hide,body FROM messages WHERE queue=%d" % \
             self.rowid
-        if match_hidden is False:
-            query += " AND hide == 0"
         if marker is not None:
             query += " AND rowid > %d" % marker
-        if limit is not None:
-            query += " LIMIT %d" % limit
+        if 'match_hidden' not in filters or filters['match_hidden'] is False:
+            query += " AND hide == 0"
+        if 'limit' in filters and filters['limit'] is not None:
+            query += " LIMIT %d" % filters['limit']
         result = self.db.execute(query).fetchall()
         messages = []
         for row in result:
@@ -116,10 +114,8 @@ class Backend(burrowd.backend.Backend):
                 body=row[3]))
         return messages
 
-    def update_messages(self, account, queue, limit, marker, match_hidden, ttl,
-                        hide):
-        messages = self.get_messages(account, queue, limit, marker,
-            match_hidden)
+    def update_messages(self, account, queue, ttl, hide, filters={}):
+        messages = self.get_messages(account, queue, filters)
         query = "UPDATE messages SET"
         comma = ''
         if ttl is not None:

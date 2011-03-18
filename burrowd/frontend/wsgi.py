@@ -146,26 +146,24 @@ class Frontend(burrowd.frontend.Frontend):
     @webob.dec.wsgify
     @queue_exists
     def _delete_queue(self, req, account, queue):
-        limit, marker, match_hidden = self._parse_filters(req)
-        messages = self.backend.delete_messages(account, queue, limit, marker,
-            match_hidden)
+        filters = self._parse_filters(req)
+        messages = self.backend.delete_messages(account, queue, filters)
         return self._return_messages(req, account, queue, messages, 'none')
 
     @webob.dec.wsgify
     @queue_exists
     def _get_queue(self, req, account, queue):
-        limit, marker, match_hidden = self._parse_filters(req)
-        messages = self.backend.get_messages(account, queue, limit, marker,
-            match_hidden)
+        filters = self._parse_filters(req)
+        messages = self.backend.get_messages(account, queue, filters)
         return self._return_messages(req, account, queue, messages, 'all')
 
     @webob.dec.wsgify
     @queue_exists
     def _post_queue(self, req, account, queue):
-        limit, marker, match_hidden = self._parse_filters(req)
         ttl, hide = self._parse_metadata(req)
-        messages = self.backend.update_messages(account, queue, limit, marker,
-            match_hidden, ttl, hide)
+        filters = self._parse_filters(req)
+        messages = self.backend.update_messages(account, queue, ttl, hide,
+            filters)
         return self._return_messages(req, account, queue, messages, 'all')
 
     @webob.dec.wsgify
@@ -239,16 +237,14 @@ class Frontend(burrowd.frontend.Frontend):
         return webob.exc.HTTPOk(body=json.dumps(body, indent=2))
 
     def _parse_filters(self, req):
-        limit = None
+        filters = {}
         if 'limit' in req.params:
-            limit = int(req.params['limit'])
-        marker = None
+            filters['limit'] = int(req.params['limit'])
         if 'marker' in req.params:
-            marker = req.params['marker']
-        match_hidden = False
+            filters['marker'] = req.params['marker']
         if 'hidden' in req.params and req.params['hidden'].lower() == 'true':
-            match_hidden = True
-        return limit, marker, match_hidden
+            filters['match_hidden'] = True
+        return filters
 
     def _parse_metadata(self, req, default_ttl=None, default_hide=None):
         if 'ttl' in req.params:

@@ -42,22 +42,19 @@ class Backend(burrowd.backend.Backend):
     def queue_exists(self, account, queue):
         return account in self.accounts and queue in self.accounts[account]
 
-    def delete_messages(self, account, queue, limit, marker, match_hidden):
-        messages = self._scan_queue(account, queue, limit, marker,
-            match_hidden, delete=True)
+    def delete_messages(self, account, queue, filters={}):
+        messages = self._scan_queue(account, queue, filters, delete=True)
         if len(self.accounts[account][queue]) == 0:
             del self.accounts[account][queue]
         if len(self.accounts[account]) == 0:
             del self.accounts[account]
         return messages
 
-    def get_messages(self, account, queue, limit, marker, match_hidden):
-        return self._scan_queue(account, queue, limit, marker, match_hidden)
+    def get_messages(self, account, queue, filters={}):
+        return self._scan_queue(account, queue, filters)
 
-    def update_messages(self, account, queue, limit, marker, match_hidden, ttl,
-                        hide):
-        return self._scan_queue(account, queue, limit, marker, match_hidden,
-                                ttl=ttl, hide=hide)
+    def update_messages(self, account, queue, ttl, hide, filters={}):
+        return self._scan_queue(account, queue, filters, ttl=ttl, hide=hide)
 
     def delete_message(self, account, queue, message_id):
         for index in range(0, len(self.accounts[account][queue])):
@@ -134,15 +131,15 @@ class Backend(burrowd.backend.Backend):
             if len(self.accounts[account]) == 0:
                 del self.accounts[account]
 
-    def _scan_queue(self, account, queue, limit, marker, match_hidden,
-                    ttl=None, hide=None, delete=False):
+    def _scan_queue(self, account, queue, filters, ttl=None, hide=None,
+        delete=False):
         index = 0
         notify = False
-        if marker is not None:
+        if 'marker' in filters and filters['marker'] is not None:
             found = False
             for index in range(0, len(self.accounts[account][queue])):
                 message = self.accounts[account][queue][index]
-                if message['id'] == marker:
+                if message['id'] == filters['marker']:
                     index += 1
                     found = True
                     break
@@ -150,6 +147,8 @@ class Backend(burrowd.backend.Backend):
                 index = 0
         messages = []
         total = len(self.accounts[account][queue])
+        limit = filters.get('limit', None)
+        match_hidden = filters.get('match_hidden', False)
         while index < total:
             message = self.accounts[account][queue][index]
             if not match_hidden and message['hide'] != 0:
