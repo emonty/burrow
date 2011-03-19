@@ -29,6 +29,7 @@ class Backend(burrowd.backend.Backend):
         super(Backend, self).__init__(config)
         database = self.config.get('database', DEFAULT_DATABASE)
         self.db = sqlite3.connect(database)
+        self.db.isolation_level = None
         queries = [
             'CREATE TABLE queues ('
                 'account VARCHAR(255) NOT NULL,'
@@ -45,73 +46,94 @@ class Backend(burrowd.backend.Backend):
             self.db.execute(query)
 
     def delete_accounts(self, filters={}):
-        self.db.execute("DELETE FROM queues")
-        self.db.execute("DELETE FROM messages")
+        if len(filters) == 0:
+            self.db.execute('DELETE FROM queues')
+            self.db.execute('DELETE FROM messages')
+            return
 
     def get_accounts(self, filters={}):
-        result = self.db.execute("SELECT account FROM queues").fetchall()
-        return [row[0] for row in result]
+        query = 'SELECT DISTINCT account FROM queues'
+        values = tuple()
+        marker = filters.get('marker', None)
+        if marker is not None:
+            query += ' WHERE account > ?'
+            values += (marker,)
+        limit = filters.get('limit', None)
+        if limit is not None:
+            query += ' LIMIT ?'
+            values += (limit,)
+        for row in self.db.execute(query, values):
+            yield row[0]
 
     def delete_queues(self, account, filters={}):
-        query = "SELECT rowid FROM queues WHERE account='%s'" % account
-        result = self.db.execute(query).fetchall()
-        if len(result) == 0:
+        query = 'SELECT rowid FROM queues WHERE account=?'
+        ids = []
+        for row in self.db.execute(query, (account,)):
+            ids.append(str(row[0]))
+        if len(ids) == 0:
             return
-        queues = [str(queue[0]) for queue in result]
-        query = "DELETE FROM messages WHERE queue IN (%s)" % (','.join(queues))
-        self.db.execute(query)
-        self.db.execute("DELETE FROM queues WHERE account='%s'" % account)
+        query = 'DELETE FROM messages WHERE queue IN (%s)'
+        self.db.execute(query % ','.join(ids))
+        self.db.execute('DELETE FROM queues WHERE account=?', (account,))
 
     def get_queues(self, account, filters={}):
-        query = "SELECT queue FROM queues WHERE account='%s'" % account
-        result = self.db.execute(query).fetchall()
-        return [row[0] for row in result]
+        query = 'SELECT queue FROM queues WHERE account=?'
+        for row in self.db.execute(query, (account,)):
+            yield row[0]
 
     def delete_messages(self, account, queue, filters={}):
-        rowid, messages = self._get_messages(account, queue, filters)
-        if messages == []:
-            return []
-        ids = [message['id'] for message in messages]
-        query = "DELETE FROM messages WHERE queue=%d AND name IN (%s)" % \
-            (rowid, ','.join(ids))
-        self.db.execute(query)
-        query = "SELECT rowid FROM messages WHERE queue=%d LIMIT 1" % rowid
-        if len(self.db.execute(query).fetchall()) == 0:
-            query = "DELETE FROM queues WHERE rowid=%d" % rowid
-            self.db.execute(query)
-        return messages
+        result = self._get_messages(account, queue, filters)
+        rowid = result.next()
+        ids = []
+        for message in result:
+            ids.append(message['id'])
+            yield message
+        if len(ids) == 0:
+            return
+        query = 'DELETE FROM messages WHERE queue=%d AND name IN (%s)'
+        self.db.execute(query % (rowid, ','.join(ids)))
+        query = 'SELECT rowid FROM messages WHERE queue=? LIMIT 1'
+        if len(self.db.execute(query, (rowid,)).fetchall()) == 0:
+            query = 'DELETE FROM queues WHERE rowid=?'
+            self.db.execute(query, (rowid,))
 
     def get_messages(self, account, queue, filters={}):
-        rowid, messages = self._get_messages(account, queue, filters)
-        return messages
+        result = self._get_messages(account, queue, filters)
+        rowid = result.next()
+        return result
 
     def update_messages(self, account, queue, attributes={}, filters={}):
-        rowid, messages = self._get_messages(account, queue, filters)
-        if messages == []:
-            return []
-        query = "UPDATE messages SET"
-        comma = ''
+        result = self._get_messages(account, queue, filters)
+        rowid = result.next()
+        ids = []
         ttl = attributes.get('ttl', None)
         hide = attributes.get('hide', None)
-        if ttl is not None:
-            query += "%s ttl=%d" % (comma, ttl)
-            comma = ','
-        if hide is not None:
-            query += "%s hide=%d" % (comma, hide)
-            comma = ','
-        if comma == '':
-            return (False, message)
-        ids = []
-        for message in messages:
+        for message in result:
             ids.append(message['id'])
             if ttl is not None:
                 message['ttl'] = ttl
             if hide is not None:
                 message['hide'] = hide
-        query += " WHERE queue=%d AND name IN (%s)" % (rowid, ','.join(ids))
-        self.db.execute(query)
+            yield message
+        if len(ids) == 0:
+            return
+        query = 'UPDATE messages SET'
+        comma = ''
+        values = tuple()
+        if ttl is not None:
+            query += '%s ttl=?' % comma
+            values += (ttl,)
+            comma = ','
+        if hide is not None:
+            query += '%s hide=?' % comma
+            values += (hide,)
+            comma = ','
+        if comma == '':
+            return
+        values += (rowid,)
+        query += ' WHERE queue=? AND name IN (%s)'
+        self.db.execute(query % ','.join(ids), values)
         self.notify(account, queue)
-        return messages
 
     def create_message(self, account, queue, message, body, attributes):
         query = "SELECT rowid FROM queues " \
@@ -242,8 +264,9 @@ class Backend(burrowd.backend.Backend):
 
     def _get_messages(self, account, queue, filters):
         rowid = self._get_queue(account, queue)
+        yield rowid
         if rowid is None:
-            return None, []
+            return
         marker = None
         if 'marker' in filters and filters['marker'] is not None:
             query = "SELECT rowid FROM messages " \
@@ -260,8 +283,5 @@ class Backend(burrowd.backend.Backend):
         if 'limit' in filters and filters['limit'] is not None:
             query += " LIMIT %d" % filters['limit']
         result = self.db.execute(query).fetchall()
-        messages = []
         for row in result:
-            messages.append(dict(id=row[0], ttl=row[1], hide=row[2],
-                body=row[3]))
-        return rowid, messages
+            yield dict(id=row[0], ttl=row[1], hide=row[2], body=row[3])
