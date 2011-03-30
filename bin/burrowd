@@ -20,15 +20,15 @@ Burrow server.
 import os
 import sys
 
-# If ../burrowd/__init__.py exists, add ../ to the Python search path so
+# If ../burrow/__init__.py exists, add ../ to the Python search path so
 # that it will override whatever may be installed in the default Python
 # search path.
 BASE_DIRECTORY = os.path.join(os.path.abspath(__file__), os.pardir, os.pardir)
 BASE_DIRECTORY = os.path.normpath(BASE_DIRECTORY)
-if os.path.exists(os.path.join(BASE_DIRECTORY, 'burrowd', '__init__.py')):
+if os.path.exists(os.path.join(BASE_DIRECTORY, 'burrow', '__init__.py')):
     sys.path.insert(0, BASE_DIRECTORY)
 
-import burrowd
+import burrow
 
 if __name__ == '__main__':
-    burrowd.Burrowd(sys.argv[1:]).run()
+    burrow.Server(sys.argv[1:]).run()

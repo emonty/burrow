@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''Memory backend for the burrow server.'''
+'''Memory backend for burrow.'''
 
 import time
 
-import burrowd.backend
+import burrow.backend
 
 
-class Backend(burrowd.backend.Backend):
+class Backend(burrow.backend.Backend):
     '''This backend stores all data using native Python data
     structures. It uses a linked list of tuples to store data
     (accounts, queues, and messages) with a dict as a secondary index

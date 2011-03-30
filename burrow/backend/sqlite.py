@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''Memory backend for the burrow server.'''
+'''SQLite backend for burrow.'''
 
 import sqlite3
 import time
 
-import burrowd.backend
+import burrow.backend
 
 # Default configuration values for this module.
 DEFAULT_DATABASE = ':memory:'
 
 
-class Backend(burrowd.backend.Backend):
+class Backend(burrow.backend.Backend):
 
     def __init__(self, config):
         super(Backend, self).__init__(config)

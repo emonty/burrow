@@ -20,19 +20,19 @@ import unittest
 import eventlet
 import webob
 
-import burrowd.backend.memory
-import burrowd.backend.sqlite
-import burrowd.frontend.wsgi
+import burrow.backend.memory
+import burrow.backend.sqlite
+import burrow.frontend.wsgi
 
 
 class TestWSGIMemory(unittest.TestCase):
     '''Unittests for the WSGI frontend to SQLite backend.'''
-    backend_class = burrowd.backend.memory.Backend
+    backend_class = burrow.backend.memory.Backend
 
     def setUp(self):
         config = (ConfigParser.ConfigParser(), 'test')
         self.backend = self.backend_class(config)
-        self.frontend = burrowd.frontend.wsgi.Frontend(config, self.backend)
+        self.frontend = burrow.frontend.wsgi.Frontend(config, self.backend)
         self.frontend.default_ttl = 0
         self._get_url('/', status=404)
         self._get_url('/a', status=404)
@@ -310,4 +310,4 @@ class TestWSGIMemory(unittest.TestCase):
 
 class TestWSGISQLite(TestWSGIMemory):
     '''Unittests for the WSGI frontend to SQLite backend.'''
-    backend_class = burrowd.backend.sqlite.Backend
+    backend_class = burrow.backend.sqlite.Backend

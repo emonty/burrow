@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''Backends for the burrow server.'''
+'''Backends for burrow.'''
 
 import eventlet
 
-import burrowd
+import burrow
 
 
-class Backend(burrowd.Module):
+class Backend(burrow.Module):
     '''Interface that backend implementations must provide.'''
 
     def __init__(self, config):

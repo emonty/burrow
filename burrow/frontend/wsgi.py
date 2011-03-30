@@ -24,7 +24,7 @@ import routes.middleware
 import webob.dec
 import webob.exc
 
-import burrowd.frontend
+import burrow.frontend
 
 # Default configuration values for this module.
 DEFAULT_HOST = '0.0.0.0'
@@ -61,7 +61,7 @@ def wait_on_queue(method):
     return wrapper
 
 
-class Frontend(burrowd.frontend.Frontend):
+class Frontend(burrow.frontend.Frontend):
 
     def __init__(self, config, backend):
         super(Frontend, self).__init__(config, backend)

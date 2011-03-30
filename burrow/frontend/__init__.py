@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''Frontends for the burrow server.'''
+'''Frontends for burrow.'''
 
-import burrowd
+import burrow
 
 
-class Frontend(burrowd.Module):
+class Frontend(burrow.Module):
     '''Interface that frontend implementations must provide.'''
 
     def __init__(self, config, backend):
