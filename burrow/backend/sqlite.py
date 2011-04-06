@@ -147,8 +147,8 @@ class Backend(burrow.backend.Backend):
         query = "SELECT rowid FROM messages WHERE queue=%d AND name='%s'" % \
             (rowid, message)
         result = self.db.execute(query).fetchall()
-        ttl = attributes.get('ttl', None)
-        hide = attributes.get('hide', None)
+        ttl = attributes.get('ttl', 0)
+        hide = attributes.get('hide', 0)
         if len(result) == 0:
             query = "INSERT INTO messages VALUES (%d, '%s', %d, %d, '%s')" % \
                 (rowid, message, ttl, hide, body)

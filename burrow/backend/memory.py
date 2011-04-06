@@ -56,8 +56,8 @@ class Backend(burrow.backend.Backend):
 
     def create_message(self, account, queue, message, body, attributes={}):
         account, queue = self.accounts.get_queue(account, queue, True)
-        ttl = attributes.get('ttl', None)
-        hide = attributes.get('hide', None)
+        ttl = attributes.get('ttl', 0)
+        hide = attributes.get('hide', 0)
         for index in xrange(0, len(queue[3])):
             if queue[3][index]['id'] == message:
                 message = queue[3][index]

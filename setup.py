@@ -17,10 +17,13 @@ from setuptools import setup, find_packages
 from setuptools.command.sdist import sdist
 import os
 import subprocess
+
 try:
     from babel.messages import frontend
 except ImportError:
     frontend = None
+
+import burrow
 
 
 class local_sdist(sdist):
@@ -54,7 +57,7 @@ if frontend:
 
 setup(
     name=name,
-    version='0.1',
+    version=burrow.__version__,
     description='Burrow',
     license='Apache License (2.0)',
     author='OpenStack, LLC.',
