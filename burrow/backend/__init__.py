@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''Backends for the burrow server.'''
+'''Backends for burrow.'''
 
 import eventlet
 
-import burrowd
+import burrow
 
 
-class Backend(burrowd.Module):
+class Backend(burrow.Module):
     '''Interface that backend implementations must provide.'''
 
     def __init__(self, config):
@@ -27,62 +27,52 @@ class Backend(burrowd.Module):
         self.queues = {}
 
     def run(self, thread_pool):
+        '''Run the backend. This should start any periodic tasks in
+        separate threads and should never block.'''
         thread_pool.spawn_n(self._clean)
 
-    def _clean(self):
-        while True:
-            self.clean()
-            eventlet.sleep(1)
-
-    def delete_accounts(self):
+    def delete_accounts(self, filters={}):
         pass
 
-    def get_accounts(self):
+    def get_accounts(self, filters={}):
         return []
 
-    def delete_account(self, account):
+    def delete_queues(self, account, filters={}):
         pass
 
-    def get_queues(self, account):
+    def get_queues(self, account, filters={}):
         return []
 
-    def queue_exists(self, account, queue):
-        return False
-
-    def delete_messages(self, account, queue, limit, marker, match_hidden):
+    def delete_messages(self, account, queue, filters={}):
         return []
 
-    def get_messages(self, account, queue, limit, marker, match_hidden):
+    def get_messages(self, account, queue, filters={}):
         return []
 
-    def update_messages(self, account, queue, limit, marker, match_hidden, ttl,
-                        hide):
+    def update_messages(self, account, queue, attributes={}, filters={}):
         return []
 
-    def delete_message(self, account, queue, message_id):
-        return None
-
-    def get_message(self, account, queue, message_id):
-        return None
-
-    def put_message(self, account, queue, message_id, ttl, hide, body):
+    def create_message(self, account, queue, message, body, attributes={}):
         return True
 
-    def update_message(self, account, queue, message_id, ttl, hide):
+    def delete_message(self, account, queue, message):
         return None
 
-    def clean(self):
-        '''This method should remove all messages with an expired
-        TTL and make hidden messages that have an expired hide time
-        visible again.'''
-        pass
+    def get_message(self, account, queue, message):
+        return None
+
+    def update_message(self, account, queue, message, attributes={}):
+        return None
 
     def notify(self, account, queue):
+        '''Notify any waiting callers that the account/queue has
+        a visible message.'''
         queue = '%s/%s' % (account, queue)
         if queue in self.queues:
             self.queues[queue].put(0)
 
     def wait(self, account, queue, seconds):
+        '''Wait for a message to appear in the account/queue.'''
         queue = '%s/%s' % (account, queue)
         if queue not in self.queues:
             self.queues[queue] = eventlet.Queue()
@@ -92,3 +82,15 @@ class Backend(burrowd.Module):
             pass
         if self.queues[queue].getting() == 0:
             del self.queues[queue]
+
+    def clean(self):
+        '''This method should remove all messages with an expired
+        TTL and make hidden messages that have an expired hide time
+        visible again.'''
+        pass
+
+    def _clean(self):
+        '''Thread to run the clean method periodically.'''
+        while True:
+            self.clean()
+            eventlet.sleep(1)

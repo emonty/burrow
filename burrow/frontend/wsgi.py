@@ -24,7 +24,7 @@ import routes.middleware
 import webob.dec
 import webob.exc
 
-import burrowd.frontend
+import burrow.frontend
 
 # Default configuration values for this module.
 DEFAULT_HOST = '0.0.0.0'
@@ -38,20 +38,18 @@ DEFAULT_TTL = 600
 DEFAULT_HIDE = 0
 
 
-def queue_exists(method):
-    '''Decorator to ensure an account and queue exists. If the wait
-    option is given, this will block until a message in the queue is
-    ready or the timeout expires.'''
+def wait_on_queue(method):
+    '''Decorator to wait on an account/queue if the wait option is
+    given. This will block until a message in the queue is ready or
+    the timeout expires.'''
     def wrapper(self, req, account, queue, *args, **kwargs):
         wait = 0
         if 'wait' in req.params:
             wait = int(req.params['wait'])
             if wait > 0:
                 wait += time.time()
-        res = webob.exc.HTTPNotFound()
         while True:
-            if self.backend.queue_exists(account, queue):
-                res = method(self, req, account, queue, *args, **kwargs)
+            res = method(self, req, account, queue, *args, **kwargs)
             if wait == 0 or res.status_int != 404:
                 break
             now = time.time()
@@ -63,7 +61,7 @@ def queue_exists(method):
     return wrapper
 
 
-class Frontend(burrowd.frontend.Frontend):
+class Frontend(burrow.frontend.Frontend):
 
     def __init__(self, config, backend):
         super(Frontend, self).__init__(config, backend)
@@ -73,7 +71,7 @@ class Frontend(burrowd.frontend.Frontend):
         mapper.connect('/', action='root')
         mapper.connect('/{account}', action='account')
         mapper.connect('/{account}/{queue}', action='queue')
-        mapper.connect('/{account}/{queue}/{message_id}', action='message')
+        mapper.connect('/{account}/{queue}/{message}', action='message')
         self._routes = routes.middleware.RoutesMiddleware(self._route, mapper)
 
     def run(self, thread_pool):
@@ -121,85 +119,86 @@ class Frontend(burrowd.frontend.Frontend):
 
     @webob.dec.wsgify
     def _delete_root(self, req):
-        self.backend.delete_accounts()
+        filters = self._parse_filters(req)
+        self.backend.delete_accounts(filters)
         return webob.exc.HTTPNoContent()
 
     @webob.dec.wsgify
     def _get_root(self, req):
-        accounts = self.backend.get_accounts()
+        filters = self._parse_filters(req)
+        accounts = [account for account in self.backend.get_accounts(filters)]
         if len(accounts) == 0:
             return webob.exc.HTTPNotFound()
         return webob.exc.HTTPOk(body=json.dumps(accounts, indent=2))
 
     @webob.dec.wsgify
     def _delete_account(self, req, account):
-        self.backend.delete_account(account)
+        filters = self._parse_filters(req)
+        self.backend.delete_queues(account, filters)
         return webob.exc.HTTPNoContent()
 
     @webob.dec.wsgify
     def _get_account(self, req, account):
-        queues = self.backend.get_queues(account)
+        filters = self._parse_filters(req)
+        queues = [queue for queue in self.backend.get_queues(account, filters)]
         if len(queues) == 0:
             return webob.exc.HTTPNotFound()
         return webob.exc.HTTPOk(body=json.dumps(queues, indent=2))
 
     @webob.dec.wsgify
-    @queue_exists
+    @wait_on_queue
     def _delete_queue(self, req, account, queue):
-        limit, marker, match_hidden = self._parse_filters(req)
-        messages = self.backend.delete_messages(account, queue, limit, marker,
-            match_hidden)
+        filters = self._parse_filters(req)
+        messages = [message for message in
+            self.backend.delete_messages(account, queue, filters)]
         return self._return_messages(req, account, queue, messages, 'none')
 
     @webob.dec.wsgify
-    @queue_exists
+    @wait_on_queue
     def _get_queue(self, req, account, queue):
-        limit, marker, match_hidden = self._parse_filters(req)
-        messages = self.backend.get_messages(account, queue, limit, marker,
-            match_hidden)
+        filters = self._parse_filters(req)
+        messages = [message for message in
+            self.backend.get_messages(account, queue, filters)]
         return self._return_messages(req, account, queue, messages, 'all')
 
     @webob.dec.wsgify
-    @queue_exists
+    @wait_on_queue
     def _post_queue(self, req, account, queue):
-        limit, marker, match_hidden = self._parse_filters(req)
-        ttl, hide = self._parse_metadata(req)
-        messages = self.backend.update_messages(account, queue, limit, marker,
-            match_hidden, ttl, hide)
+        attributes = self._parse_attributes(req)
+        filters = self._parse_filters(req)
+        messages = [message for message in
+            self.backend.update_messages(account, queue, attributes, filters)]
         return self._return_messages(req, account, queue, messages, 'all')
 
     @webob.dec.wsgify
-    @queue_exists
-    def _delete_message(self, req, account, queue, message_id):
-        message = self.backend.delete_message(account, queue, message_id)
+    def _delete_message(self, req, account, queue, message):
+        message = self.backend.delete_message(account, queue, message)
         if message is None:
             return webob.exc.HTTPNotFound()
         return self._return_message(req, account, queue, message, 'none')
 
     @webob.dec.wsgify
-    @queue_exists
-    def _get_message(self, req, account, queue, message_id):
-        message = self.backend.get_message(account, queue, message_id)
+    def _get_message(self, req, account, queue, message):
+        message = self.backend.get_message(account, queue, message)
         if message is None:
             return webob.exc.HTTPNotFound()
         return self._return_message(req, account, queue, message, 'all')
 
     @webob.dec.wsgify
-    @queue_exists
-    def _post_message(self, req, account, queue, message_id):
-        ttl, hide = self._parse_metadata(req)
-        message = self.backend.update_message(account, queue, message_id, ttl,
-                                              hide)
+    def _post_message(self, req, account, queue, message):
+        attributes = self._parse_attributes(req)
+        message = self.backend.update_message(account, queue, message,
+            attributes)
         if message is None:
             return webob.exc.HTTPNotFound()
         return self._return_message(req, account, queue, message, 'id')
 
     @webob.dec.wsgify
-    def _put_message(self, req, account, queue, message_id):
-        (ttl, hide) = self._parse_metadata(req, self.default_ttl,
-                                           self.default_hide)
-        if self.backend.put_message(account, queue, message_id, ttl, hide, \
-                                    req.body):
+    def _put_message(self, req, account, queue, message):
+        attributes = self._parse_attributes(req, self.default_ttl,
+            self.default_hide)
+        if self.backend.create_message(account, queue, message, req.body,
+            attributes):
             return webob.exc.HTTPCreated()
         return webob.exc.HTTPNoContent()
 
@@ -239,31 +238,32 @@ class Frontend(burrowd.frontend.Frontend):
         return webob.exc.HTTPOk(body=json.dumps(body, indent=2))
 
     def _parse_filters(self, req):
-        limit = None
+        filters = {}
         if 'limit' in req.params:
-            limit = int(req.params['limit'])
-        marker = None
+            filters['limit'] = int(req.params['limit'])
         if 'marker' in req.params:
-            marker = req.params['marker']
-        match_hidden = False
+            filters['marker'] = req.params['marker']
         if 'hidden' in req.params and req.params['hidden'].lower() == 'true':
-            match_hidden = True
-        return limit, marker, match_hidden
+            filters['match_hidden'] = True
+        return filters
 
-    def _parse_metadata(self, req, default_ttl=None, default_hide=None):
+    def _parse_attributes(self, req, default_ttl=None, default_hide=None):
+        attributes = {}
         if 'ttl' in req.params:
             ttl = int(req.params['ttl'])
         else:
             ttl = default_ttl
         if ttl is not None and ttl > 0:
             ttl += int(time.time())
+        attributes['ttl'] = ttl
         if 'hide' in req.params:
             hide = int(req.params['hide'])
         else:
             hide = default_hide
         if hide is not None and hide > 0:
             hide += int(time.time())
-        return ttl, hide
+        attributes['hide'] = hide
+        return attributes
 
 
 class WSGILog(object):

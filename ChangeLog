@@ -1,3 +1,43 @@
+2011-03-30  Eric Day  <eday@oddments.org>
+
+	Merged burrow and burrowd packages, the interfaces for backend/client can be shared, and this will also allow modular in-process queues.
+
+2011-03-18  Eric Day  <eday@oddments.org>
+
+	Started SQLite backend cleanup.
+
+2011-03-18  Eric Day  <eday@oddments.org>
+
+	More backend API cleanup.
+
+2011-03-18  Eric Day  <eday@oddments.org>
+
+	Further backend API cleanup, started cleanup in memory backend.
+
+2011-03-17  Eric Day  <eday@oddments.org>
+
+	Removed the need to 'queue_exists' decorator and backend methods.
+
+2011-03-17  Eric Day  <eday@oddments.org>
+
+	Switched to pass attributes as a dict instead of positional arguments.
+
+2011-03-17  Eric Day  <eday@oddments.org>
+
+	Switched to pass filters as a dict instead of positional arguments.
+
+2011-03-18  Eric Day  <eday@oddments.org>
+
+	Started locale support.
+
+2011-03-17  Eric Day  <eday@oddments.org>
+
+	Started locale support.
+
+2011-03-17  Eric Day  <eday@oddments.org>
+
+	Python prototype conversion to get new trunk started.
+
 2011-03-17  Eric Day  <eday@oddments.org>
 
 	First chunk of code from prototype. Beyond the prototype, configuration, module loading, and log handling was added.

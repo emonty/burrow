@@ -12,29 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''Main server module for burrow.'''
+'''Server module for burrow.'''
 
 import ConfigParser
-import gettext
 import logging
 import logging.config
-import sys
 
 import eventlet
 
-import burrowd.config
-
-# This installs the _(...) function as a built-in so all other modules
-# don't need to.
-gettext.install('burrow')
+import burrow
+import burrow.config
 
 # Default configuration values for this module.
-DEFAULT_BACKEND = 'burrowd.backend.sqlite'
-DEFAULT_FRONTENDS = 'burrowd.frontend.wsgi'
+DEFAULT_BACKEND = 'burrow.backend.sqlite'
+DEFAULT_FRONTENDS = 'burrow.frontend.wsgi'
 DEFAULT_THREAD_POOL_SIZE = 1000
 
 
-class Burrowd(object):
+class Server(object):
     '''Server class for burrow.'''
 
     def __init__(self, config_files=[], add_default_log_handler=True):
@@ -46,8 +41,8 @@ class Burrowd(object):
             logging.config.fileConfig(config_files)
         self._config = ConfigParser.ConfigParser()
         self._config.read(config_files)
-        self.config = burrowd.config.Config(self._config, 'burrowd')
-        self.log = get_logger(self.config)
+        self.config = burrow.config.Config(self._config, 'burrow.server')
+        self.log = burrow.get_logger(self.config)
         if add_default_log_handler:
             self._add_default_log_handler()
         self._import_backend()
@@ -68,7 +63,7 @@ class Burrowd(object):
         '''Load backend given in the 'backend' option.'''
         backend = self.config.get('backend', DEFAULT_BACKEND)
         config = (self._config, backend)
-        self.backend = import_class(backend, 'Backend')(config)
+        self.backend = burrow.import_class(backend, 'Backend')(config)
 
     def _import_frontends(self):
         '''Load frontends given in the 'frontends' option.'''
@@ -79,7 +74,7 @@ class Burrowd(object):
             if len(frontend) == 1:
                 frontend.append(None)
             config = (self._config, frontend[0], frontend[1])
-            frontend = import_class(frontend[0], 'Frontend')
+            frontend = burrow.import_class(frontend[0], 'Frontend')
             frontend = frontend(config, self.backend)
             self.frontends.append(frontend)
 
@@ -98,34 +93,3 @@ class Burrowd(object):
             thread_pool.waitall()
         except KeyboardInterrupt:
             pass
-
-
-class Module(object):
-    '''Common module class for burrow.'''
-
-    def __init__(self, config):
-        self.config = burrowd.config.Config(*config)
-        self.log = get_logger(self.config)
-        self.log.debug(_('Module created'))
-
-
-def get_logger(config):
-    '''Create a logger from the given config.'''
-    log = logging.getLogger(config.section)
-    log_level = config.get('log_level', 'DEBUG')
-    log_level = logging.getLevelName(log_level)
-    if isinstance(log_level, int):
-        log.setLevel(log_level)
-    return log
-
-
-def import_class(module_name, class_name=None):
-    '''Import a class given a full module.class name.'''
-    if class_name is None:
-        module_name, _separator, class_name = module_name.rpartition('.')
-    try:
-        __import__(module_name)
-        return getattr(sys.modules[module_name], class_name)
-    except (ImportError, ValueError, AttributeError), exception:
-        raise ImportError(_('Class %s.%s cannot be found (%s)') %
-            (module_name, class_name, exception))
