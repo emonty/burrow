@@ -22,7 +22,7 @@ from burrow.client import Client
 from burrow.server import Server
 import burrow.config
 
-__version__ = '0.1'
+__version__ = '2011.2'
 
 # This installs the _(...) function as a built-in so all other modules
 # don't need to.
