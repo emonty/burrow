@@ -1,3 +1,7 @@
+2011-04-05  Eric Day  <eday@oddments.org>
+
+	Added command line tool, start of client class, and HTTP backend.
+
 2011-03-30  Eric Day  <eday@oddments.org>
 
 	Merged burrow and burrowd packages, the interfaces for backend/client can be shared, and this will also allow modular in-process queues.
