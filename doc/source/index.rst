@@ -14,7 +14,7 @@
   limitations under the License.
 
 Welcome to Burrow's documentation!
-==================================
+**********************************
 
 Burrow is a highly available, distributed, multi-tenant message
 queue. Burrow can be used in a variety of environments, from simple
@@ -35,4 +35,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
