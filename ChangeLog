@@ -1,3 +1,31 @@
+2011-04-08  Eric Day  <eday@oddments.org>
+
+	Added source code docs and got other sections started.
+
+2011-04-07  Eric Day  <eday@oddments.org>
+
+	Added source code docs and got other sections started.
+
+2011-04-08  Eric Day  <eday@oddments.org>
+
+	Moved code for command line tools into burrow package, commands are now simple sh scripts. Added .pylintrc and cleaned up pep8.
+
+2011-04-07  Eric Day  <eday@oddments.org>
+
+	Moved code for command line tools into burrow package, commands are now simple sh scripts. Added .pylintrc and cleaned up pep8.
+
+2011-04-07  Eric Day  <eday@oddments.org>
+
+	Added hooks and templates to build OpenStack themed Sphinx documentation.
+
+2011-04-06  Eric Day  <eday@oddments.org>
+
+	Added hooks and templates to build OpenStack themed Spinx documentation.
+
+2011-04-06  Eric Day  <eday@oddments.org>
+
+	A number of cleanup tasks and client support.
+
 2011-04-05  Eric Day  <eday@oddments.org>
 
 	Added command line tool, start of client class, and HTTP backend.
