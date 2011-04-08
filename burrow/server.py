@@ -17,6 +17,7 @@
 import ConfigParser
 import logging
 import logging.config
+import sys
 
 import eventlet
 
@@ -93,3 +94,7 @@ class Server(object):
             thread_pool.waitall()
         except KeyboardInterrupt:
             pass
+
+
+if __name__ == '__main__':
+    Server(sys.argv[1:]).run()
