@@ -13,7 +13,7 @@
 # limitations under the License.
 
 '''
-Burrow command line client.
+Burrow command line client and shell.
 '''
 
 import pwd
@@ -24,7 +24,7 @@ import sys
 import burrow
 
 
-class ClientCommand(object):
+class Shell(object):
 
     sections = [
         dict(name='Global',
@@ -161,4 +161,4 @@ class ClientCommand(object):
 
 
 if __name__ == '__main__':
-    ClientCommand().run()
+    Shell().run()

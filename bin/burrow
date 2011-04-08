@@ -23,4 +23,4 @@ then
     export PYTHONPATH
 fi
 
-/usr/bin/env python -m burrow.client_command $*
+/usr/bin/env python -m burrow.shell $*
