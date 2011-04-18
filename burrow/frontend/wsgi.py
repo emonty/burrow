@@ -69,9 +69,10 @@ class Frontend(burrow.frontend.Frontend):
         self.default_hide = self.config.get('default_hide', DEFAULT_HIDE)
         mapper = routes.Mapper()
         mapper.connect('/', action='root')
-        mapper.connect('/{account}', action='account')
-        mapper.connect('/{account}/{queue}', action='queue')
-        mapper.connect('/{account}/{queue}/{message}', action='message')
+        mapper.connect('/v1.0', action='version')
+        mapper.connect('/v1.0/{account}', action='account')
+        mapper.connect('/v1.0/{account}/{queue}', action='queue')
+        mapper.connect('/v1.0/{account}/{queue}/{message}', action='message')
         self._routes = routes.middleware.RoutesMiddleware(self._route, mapper)
 
     def run(self, thread_pool):
@@ -118,13 +119,17 @@ class Frontend(burrow.frontend.Frontend):
         return method(req, **args)
 
     @webob.dec.wsgify
-    def _delete_root(self, req):
+    def _get_root(self, req):
+        return webob.exc.HTTPOk(body=json.dumps(['v1.0'], indent=2))
+
+    @webob.dec.wsgify
+    def _delete_version(self, req):
         filters = self._parse_filters(req)
         self.backend.delete_accounts(filters)
         return webob.exc.HTTPNoContent()
 
     @webob.dec.wsgify
-    def _get_root(self, req):
+    def _get_version(self, req):
         filters = self._parse_filters(req)
         accounts = [account for account in self.backend.get_accounts(filters)]
         if len(accounts) == 0:
