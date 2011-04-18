@@ -34,18 +34,18 @@ class TestWSGIMemory(unittest.TestCase):
         self.backend = self.backend_class(config)
         self.frontend = burrow.frontend.wsgi.Frontend(config, self.backend)
         self.frontend.default_ttl = 0
-        self._get_url('/', status=404)
+        self._get_url('', status=404)
         self._get_url('/a', status=404)
         self._get_url('/a/q', status=404)
 
     def tearDown(self):
         self._get_url('/a/q', status=404)
         self._get_url('/a', status=404)
-        self._get_url('/', status=404)
+        self._get_url('', status=404)
 
     def test_account(self):
         self._put_url('/a/q/1')
-        accounts = self._get_url('/')
+        accounts = self._get_url('')
         self.assertEquals(accounts, ['a'])
         self._delete_url('/a')
 
@@ -300,7 +300,7 @@ class TestWSGIMemory(unittest.TestCase):
         return self._url('PUT', url, status=status, **kwargs)
 
     def _url(self, method, url, body='', status=200):
-        req = webob.Request.blank(url, method=method, body=body)
+        req = webob.Request.blank('/v1.0' + url, method=method, body=body)
         res = req.get_response(self.frontend)
         self.assertEquals(res.status_int, status)
         if status == 200:

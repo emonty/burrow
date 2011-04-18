@@ -28,11 +28,11 @@ class Backend(burrow.backend.Backend):
         self.server = ('localhost', 8080)
 
     def delete_accounts(self, filters={}):
-        url = self._add_parameters('/', filters=filters)
+        url = self._add_parameters('', filters=filters)
         self._request('DELETE', url)
 
     def get_accounts(self, filters={}):
-        url = self._add_parameters('/', filters=filters)
+        url = self._add_parameters('', filters=filters)
         self._request('GET', url)
 
     def delete_queues(self, account, filters={}):
@@ -93,9 +93,9 @@ class Backend(burrow.backend.Backend):
                 separator = '&'
         return url
 
-    def _request(self, *args, **kwargs):
+    def _request(self, method, url, *args, **kwargs):
         connection = httplib.HTTPConnection(*self.server)
-        connection.request(*args, **kwargs)
+        connection.request(method, '/v1.0' + url, *args, **kwargs)
         response = connection.getresponse()
         if response.status == 200:
             print response.read()
