@@ -17,7 +17,7 @@ for all sub modules and packages.'''
 
 import gettext
 
-from burrow.client import Client
+from burrow.client import Client, Account, Queue
 from burrow.server import Server
 
 __version__ = '2011.2'

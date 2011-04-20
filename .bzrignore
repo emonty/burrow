@@ -1,4 +1,6 @@
+.coverage
 burrow.egg-info
 ChangeLog
+coverage
 dist
 doc/build/*

@@ -13,13 +13,13 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
+Miscellaneous
+*************
+
 Common
-******
+======
 
-Core
-====
-
-.. automodule:: burrow
+.. automodule:: burrow.common
     :members:
     :undoc-members:
     :show-inheritance:

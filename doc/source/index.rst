@@ -61,6 +61,6 @@ Source Code
     server
     frontends
     backends
-    common
+    misc
 
 * :ref:`modindex`

@@ -226,8 +226,7 @@ class Frontend(burrow.frontend.Frontend):
             detail = req.params['detail']
         message = self._filter_message(detail, message)
         if message is not None:
-            body = {account: {queue: [message]}}
-            return webob.exc.HTTPOk(body=json.dumps(body, indent=2))
+            return webob.exc.HTTPOk(body=json.dumps(message, indent=2))
         return webob.exc.HTTPNoContent()
 
     def _return_messages(self, req, account, queue, messages, detail):
@@ -242,8 +241,7 @@ class Frontend(burrow.frontend.Frontend):
                 filtered_messages.append(message)
         if len(filtered_messages) == 0:
             return webob.exc.HTTPNoContent()
-        body = {account: {queue: filtered_messages}}
-        return webob.exc.HTTPOk(body=json.dumps(body, indent=2))
+        return webob.exc.HTTPOk(body=json.dumps(filtered_messages, indent=2))
 
     def _parse_filters(self, req):
         filters = {}

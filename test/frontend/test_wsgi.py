@@ -45,30 +45,30 @@ class TestWSGIMemory(unittest.TestCase):
 
     def test_account(self):
         self._put_url('/a/q/1')
-        accounts = self._get_url('')
-        self.assertEquals(accounts, ['a'])
+        result = self._get_url('')
+        self.assertEquals(result, ['a'])
         self._delete_url('/a')
 
     def test_queue(self):
         self._put_url('/a/q/1')
-        accounts = self._get_url('/a')
-        self.assertEquals(accounts, ['q'])
+        result = self._get_url('/a')
+        self.assertEquals(result, ['q'])
         self._delete_url('/a/q')
 
     def test_message(self):
         self._put_url('/a/q/1', body='b')
-        accounts = self._get_url('/a/q')
-        self.assertMessages(accounts, 'a', 'q', [self.message('1', body='b')])
+        result = self._get_url('/a/q')
+        self.assertMessages(result, [self.message('1', body='b')])
         self._delete_url('/a/q/1')
 
     def test_message_post(self):
         self._put_url('/a/q/1', body='b')
         for x in range(0, 3):
-            accounts = self._post_url('/a/q/1?ttl=%d&hide=%d' % (x, x))
-            self.assertEquals(accounts, {'a': {'q': [{'id': '1'}]}})
-            accounts = self._get_url('/a/q?hidden=true')
+            result = self._post_url('/a/q/1?ttl=%d&hide=%d' % (x, x))
+            self.assertEquals(result, {'id': '1'})
+            result = self._get_url('/a/q?hidden=true')
             message = self.message('1', x, x, body='b')
-            self.assertMessages(accounts, 'a', 'q', [message])
+            self.assertMessages(result, [message])
         self._delete_url('/a/q/1')
 
     def test_message_put(self):
@@ -76,151 +76,151 @@ class TestWSGIMemory(unittest.TestCase):
             url = '/a/q/1?ttl=%d&hide=%d' % (x, x)
             status = 201 if x == 0 else 204
             self._put_url(url, body=str(x), status=status)
-            accounts = self._get_url('/a/q?hidden=true')
+            result = self._get_url('/a/q?hidden=true')
             message = self.message('1', x, x, body=str(x))
-            self.assertMessages(accounts, 'a', 'q', [message])
+            self.assertMessages(result, [message])
         self._delete_url('/a/q/1')
 
     def test_message_delete_limit(self):
         [self._put_url('/a/q/%d' % x) for x in range(1, 5)]
-        accounts = self._delete_url('/a/q?limit=3&detail=all', status=200)
+        result = self._delete_url('/a/q?limit=3&detail=all', status=200)
         messages = []
         messages.append(self.message('1'))
         messages.append(self.message('2'))
         messages.append(self.message('3'))
-        self.assertMessages(accounts, 'a', 'q', messages)
-        accounts = self._delete_url('/a/q?limit=3&detail=all', status=200)
+        self.assertMessages(result, messages)
+        result = self._delete_url('/a/q?limit=3&detail=all', status=200)
         message = self.message('4')
-        self.assertMessages(accounts, 'a', 'q', [message])
+        self.assertMessages(result, [message])
 
     def test_message_get_limit(self):
         [self._put_url('/a/q/%d' % x) for x in range(1, 5)]
         for x in range(0, 4):
-            accounts = self._get_url('/a/q?limit=3')
+            result = self._get_url('/a/q?limit=3')
             messages = []
             for y in range(x, 4)[:3]:
                 messages.append(self.message(str(y + 1)))
-            self.assertMessages(accounts, 'a', 'q', messages)
+            self.assertMessages(result, messages)
             self._delete_url('/a/q/%d' % (x + 1))
 
     def test_message_post_limit(self):
         [self._put_url('/a/q/%d' % x) for x in range(1, 5)]
         for x in range(0, 4):
-            accounts = self._post_url('/a/q?limit=3&ttl=%d&detail=all' % x)
+            result = self._post_url('/a/q?limit=3&ttl=%d&detail=all' % x)
             messages = []
             for y in range(x, 4)[:3]:
                 messages.append(self.message(str(y + 1), x))
-            self.assertMessages(accounts, 'a', 'q', messages)
+            self.assertMessages(result, messages)
             self._delete_url('/a/q/%d' % (x + 1))
 
     def test_message_delete_marker(self):
         [self._put_url('/a/q/%d' % x) for x in range(1, 5)]
-        accounts = self._delete_url('/a/q?marker=2&detail=all', status=200)
+        result = self._delete_url('/a/q?marker=2&detail=all', status=200)
         messages = []
         messages.append(self.message('3'))
         messages.append(self.message('4'))
-        self.assertMessages(accounts, 'a', 'q', messages)
-        accounts = self._delete_url('/a/q?marker=5&detail=all', status=200)
+        self.assertMessages(result, messages)
+        result = self._delete_url('/a/q?marker=5&detail=all', status=200)
         messages = []
         messages.append(self.message('1'))
         messages.append(self.message('2'))
-        self.assertMessages(accounts, 'a', 'q', messages)
+        self.assertMessages(result, messages)
 
     def test_message_get_marker(self):
         [self._put_url('/a/q/%d' % x) for x in range(1, 5)]
         for x in range(0, 4):
-            accounts = self._get_url('/a/q?marker=%d' % x)
+            result = self._get_url('/a/q?marker=%d' % x)
             messages = []
             for y in range(x, 4):
                 messages.append(self.message(str(y + 1)))
-            self.assertMessages(accounts, 'a', 'q', messages)
+            self.assertMessages(result, messages)
             self._delete_url('/a/q/%d' % (x + 1))
 
     def test_message_post_marker(self):
         [self._put_url('/a/q/%d' % x) for x in range(1, 5)]
         for x in range(0, 4):
             url = '/a/q?marker=%d&ttl=%d&detail=all' % (x, x)
-            accounts = self._post_url(url)
+            result = self._post_url(url)
             messages = []
             for y in range(x, 4):
                 messages.append(self.message(str(y + 1), x))
-            self.assertMessages(accounts, 'a', 'q', messages)
+            self.assertMessages(result, messages)
             self._delete_url('/a/q/%d' % (x + 1))
 
     def test_message_delete_limit_marker(self):
         [self._put_url('/a/q/%d' % x) for x in range(1, 5)]
         url = '/a/q?limit=2&marker=1&detail=all'
-        accounts = self._delete_url(url, status=200)
+        result = self._delete_url(url, status=200)
         messages = []
         messages.append(self.message('2'))
         messages.append(self.message('3'))
-        self.assertMessages(accounts, 'a', 'q', messages)
+        self.assertMessages(result, messages)
         url = '/a/q?limit=2&marker=5&detail=all'
-        accounts = self._delete_url(url, status=200)
+        result = self._delete_url(url, status=200)
         messages = []
         messages.append(self.message('1'))
         messages.append(self.message('4'))
-        self.assertMessages(accounts, 'a', 'q', messages)
+        self.assertMessages(result, messages)
 
     def test_message_get_limit_marker(self):
         [self._put_url('/a/q/%d' % x) for x in range(1, 5)]
         for x in range(0, 4):
-            accounts = self._get_url('/a/q?limit=2&marker=%d' % x)
+            result = self._get_url('/a/q?limit=2&marker=%d' % x)
             messages = []
             for y in range(x, 4)[:2]:
                 messages.append(self.message(str(y + 1)))
-            self.assertMessages(accounts, 'a', 'q', messages)
+            self.assertMessages(result, messages)
             self._delete_url('/a/q/%d' % (x + 1))
 
     def test_message_post_limit_marker(self):
         [self._put_url('/a/q/%d' % x) for x in range(1, 5)]
         for x in range(0, 4):
             url = '/a/q?limit=2&marker=%d&ttl=%d&detail=all' % (x, x)
-            accounts = self._post_url(url)
+            result = self._post_url(url)
             messages = []
             for y in range(x, 4)[:2]:
                 messages.append(self.message(str(y + 1), x))
-            self.assertMessages(accounts, 'a', 'q', messages)
+            self.assertMessages(result, messages)
             self._delete_url('/a/q/%d' % (x + 1))
 
     def test_message_ttl(self):
         self._put_url('/a/q/1?ttl=1')
-        accounts = self._get_url('/a/q/1')
+        result = self._get_url('/a/q/1')
         message = self.message('1', 1)
-        self.assertMessages(accounts, 'a', 'q', [self.message('1', 1)])
+        self.assertMessages([result], [self.message('1', 1)])
         time.sleep(1)
         self.backend.clean()
         self._get_url('/a/q/1', status=404)
         self._put_url('/a/q/1')
-        accounts = self._get_url('/a/q/1')
-        self.assertMessages(accounts, 'a', 'q', [self.message('1')])
+        result = self._get_url('/a/q/1')
+        self.assertMessages([result], [self.message('1')])
         self._post_url('/a/q/1?ttl=1')
-        accounts = self._get_url('/a/q/1')
-        self.assertMessages(accounts, 'a', 'q', [self.message('1', 1)])
+        result = self._get_url('/a/q/1')
+        self.assertMessages([result], [self.message('1', 1)])
         time.sleep(1)
         self.backend.clean()
         self._get_url('/a/q/1', status=404)
 
     def test_message_hide(self):
         self._put_url('/a/q/1?hide=1')
-        accounts = self._get_url('/a/q/1')
-        self.assertMessages(accounts, 'a', 'q', [self.message('1', hide=1)])
+        result = self._get_url('/a/q/1')
+        self.assertMessages([result], [self.message('1', hide=1)])
         time.sleep(1)
         self.backend.clean()
-        accounts = self._get_url('/a/q/1')
-        self.assertMessages(accounts, 'a', 'q', [self.message('1')])
+        result = self._get_url('/a/q/1')
+        self.assertMessages([result], [self.message('1')])
         self._post_url('/a/q/1?hide=1')
-        accounts = self._get_url('/a/q/1')
-        self.assertMessages(accounts, 'a', 'q', [self.message('1', hide=1)])
+        result = self._get_url('/a/q/1')
+        self.assertMessages([result], [self.message('1', hide=1)])
         time.sleep(1)
         self.backend.clean()
-        accounts = self._get_url('/a/q/1')
-        self.assertMessages(accounts, 'a', 'q', [self.message('1')])
+        result = self._get_url('/a/q/1')
+        self.assertMessages([result], [self.message('1')])
         self._delete_url('/a/q/1')
 
     def _message_wait(self):
-        accounts = self._get_url('/a/q?wait=2')
-        self.assertMessages(accounts, 'a', 'q', [self.message('1')])
+        result = self._get_url('/a/q?wait=2')
+        self.assertMessages(result, [self.message('1')])
         self.success = True
 
     def test_message_put_wait(self):
@@ -270,22 +270,20 @@ class TestWSGIMemory(unittest.TestCase):
     def message(self, id, ttl=0, hide=0, body=''):
         return dict(id=id, ttl=ttl, hide=hide, body=body)
 
-    def assertMessages(self, accounts, account, queue, messages):
-        self.assertEquals(len(accounts), 1)
-        self.assertEquals(len(accounts['a']), 1)
-        self.assertEquals(len(accounts['a']['q']), len(messages))
-        for x in range(0, len(messages)):
-            self.assertEquals(accounts['a']['q'][x]['id'], messages[x]['id'])
-            ttl = messages[x]['ttl']
+    def assertMessages(self, first, second):
+        self.assertEquals(len(first), len(second))
+        for x in xrange(0, len(second)):
+            self.assertEquals(first[x]['id'], second[x]['id'])
+            ttl = second[x]['ttl']
             if ttl > 0:
                 ttl += int(time.time())
-            self.assertAlmostEquals(accounts['a']['q'][0]['ttl'], ttl)
-            hide = messages[x]['hide']
+            self.assertAlmostEquals(first[x]['ttl'], ttl)
+            hide = second[x]['hide']
             if hide > 0:
                 hide += int(time.time())
-            self.assertAlmostEquals(accounts['a']['q'][0]['hide'], hide)
-            body = messages[x]['body']
-            self.assertEquals(accounts['a']['q'][x]['body'], body)
+            self.assertAlmostEquals(first[x]['hide'], hide)
+            body = second[x]['body']
+            self.assertEquals(first[x]['body'], body)
 
     def _delete_url(self, url, status=204, **kwargs):
         return self._url('DELETE', url, status=status, **kwargs)
