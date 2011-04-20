@@ -100,6 +100,7 @@ class Shell(object):
         (self.options, self.args) = self.parser.parse_args()
         if self.options.commands:
             self.print_help()
+            sys.exit(1)
         if self.options.files is None:
             files = []
         else:
@@ -136,6 +137,9 @@ class Shell(object):
             command = command.split()
             if len(command) == 0:
                 continue
+            if command[0] == 'help':
+                self.print_help(print_options_help=False)
+                continue
             if command[0] == 'exit' or command[0] == 'quit':
                 break
             yield command
@@ -147,29 +151,24 @@ class Shell(object):
             print _('Command not found: %s') % command
             return
         if len(args) != len(section['args']):
-            print _('Wrong number of arguments')
+            for arg in section['args']:
+                command += ' <%s>' % arg
+            print _('Wrong number of arguments: %s') % command
             return
         if section.get('account', None):
             args.insert(0, self.options.account)
         if command in self.stdin_commands:
             args.append(sys.stdin.read())
         if command in self.attribute_commands:
-            attributes = {}
-            if self.options.ttl is not None:
-                attributes['ttl'] = self.options.ttl
-            if self.options.hide is not None:
-                attributes['hide'] = self.options.hide
-            args.append(attributes)
+            args.append(self._pack_attributes())
         if section.get('filters', None):
-            filters = {}
-            if self.options.limit is not None:
-                filters['limit'] = self.options.limit
-            if self.options.marker is not None:
-                filters['marker'] = self.options.marker
-            if self.options.all is not None:
-                filters['match_hidden'] = self.options.all
-            args.append(filters)
-        getattr(self.client.backend, command)(*args)
+            args.append(self._pack_filters())
+        try:
+            result = getattr(self.client, command)(*args)
+        except Exception, exception:
+            print exception
+            return
+        self._print_result(result)
 
     def _get_section(self, command):
         '''Lookup command in the defined command sections.'''
@@ -178,13 +177,51 @@ class Shell(object):
                 return section
         return None
 
-    def print_help(self, message=None):
+    def _pack_attributes(self):
+        '''Pack attributes given in command line options.'''
+        attributes = {}
+        if self.options.ttl is not None:
+            attributes['ttl'] = self.options.ttl
+        if self.options.hide is not None:
+            attributes['hide'] = self.options.hide
+        return attributes
+
+    def _pack_filters(self):
+        '''Pack filters given in command line options.'''
+        filters = {}
+        if self.options.limit is not None:
+            filters['limit'] = self.options.limit
+        if self.options.marker is not None:
+            filters['marker'] = self.options.marker
+        if self.options.all is not None:
+            filters['match_hidden'] = self.options.all
+        return filters
+
+    def _print_result(self, result):
+        '''Format and print the result.'''
+        if isinstance(result, list):
+            for item in result:
+                if isinstance(item, dict):
+                    self._print_message(item)
+                else:
+                    print item
+        elif isinstance(result, dict):
+            self._print_message(result)
+        elif result is not None:
+            print result
+
+    def _print_message(self, item):
+        '''Format and print message.'''
+        print 'id =', item['id']
+        for key, value in item.iteritems():
+            if key != 'id':
+                print '    ', key, '=', value
+
+    def print_help(self, print_options_help=True):
         '''Print the parser generated help along with burrow command help.'''
-        if message:
-            print message
+        if print_options_help:
+            self.parser.print_help()
             print
-        self.parser.print_help()
-        print
         for section in self.sections:
             print '%s commands:' % section['name']
             for command in section['commands']:
@@ -197,7 +234,6 @@ class Shell(object):
                     help_string += ' <%s>' % arg
                 print '    %s%s' % (command, help_string)
             print
-        sys.exit(1)
 
 
 if __name__ == '__main__':

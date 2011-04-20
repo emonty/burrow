@@ -15,6 +15,7 @@
 '''HTTP backend for burrow using httplib.'''
 
 import httplib
+import json
 
 import burrow.backend
 
@@ -29,52 +30,52 @@ class Backend(burrow.backend.Backend):
 
     def delete_accounts(self, filters={}):
         url = self._add_parameters('', filters=filters)
-        self._request('DELETE', url)
+        return self._request('DELETE', url)
 
     def get_accounts(self, filters={}):
         url = self._add_parameters('', filters=filters)
-        self._request('GET', url)
+        return self._request('GET', url)
 
     def delete_queues(self, account, filters={}):
         url = self._add_parameters('/%s' % account, filters=filters)
-        self._request('DELETE', url)
+        return self._request('DELETE', url)
 
     def get_queues(self, account, filters={}):
         url = self._add_parameters('/%s' % account, filters=filters)
-        self._request('GET', url)
+        return self._request('GET', url)
 
     def delete_messages(self, account, queue, filters={}):
         url = '/%s/%s' % (account, queue)
         url = self._add_parameters(url, filters=filters)
-        self._request('DELETE', url)
+        return self._request('DELETE', url)
 
     def get_messages(self, account, queue, filters={}):
         url = '/%s/%s' % (account, queue)
         url = self._add_parameters(url, filters=filters)
-        self._request('GET', url)
+        return self._request('GET', url)
 
     def update_messages(self, account, queue, attributes={}, filters={}):
         url = '/%s/%s' % (account, queue)
         url = self._add_parameters(url, attributes, filters)
-        self._request('POST', url)
+        return self._request('POST', url)
 
     def create_message(self, account, queue, message, body, attributes={}):
         url = '/%s/%s/%s' % (account, queue, message)
         url = self._add_parameters(url, attributes)
-        self._request('PUT', url, body=body)
+        return self._request('PUT', url, body=body)
 
     def delete_message(self, account, queue, message):
         url = '/%s/%s/%s' % (account, queue, message)
-        self._request('DELETE', url)
+        return self._request('DELETE', url)
 
     def get_message(self, account, queue, message):
         url = '/%s/%s/%s' % (account, queue, message)
-        self._request('GET', url)
+        return self._request('GET', url)
 
     def update_message(self, account, queue, message, attributes={}):
         url = '/%s/%s/%s' % (account, queue, message)
         url = self._add_parameters(url, attributes)
-        self._request('POST', url)
+        return self._request('POST', url)
 
     def clean(self):
         pass
@@ -98,6 +99,6 @@ class Backend(burrow.backend.Backend):
         connection.request(method, '/v1.0' + url, *args, **kwargs)
         response = connection.getresponse()
         if response.status == 200:
-            print response.read()
+            return json.loads(response.read())
         if response.status >= 400:
-            print response.reason
+            raise Exception(response.reason)

@@ -43,3 +43,64 @@ class Client(object):
         backend = self.config.get('backend', DEFAULT_BACKEND)
         config = (self._config, backend)
         return burrow.common.import_class(backend, 'Backend')(config)
+
+    def __getattr__(self, name):
+        return getattr(self.backend, name)
+
+
+class Account(object):
+    '''Convenience wrapper around the Client class that saves the
+    account setting. This allows you to use methods without specifying
+    the 'account' parameter every time.'''
+
+    account_methods = [
+        'delete_queues',
+        'get_queues',
+        'delete_messages',
+        'get_messages',
+        'update_messages',
+        'create_message',
+        'delete_message',
+        'get_message',
+        'update_message']
+
+    def __init__(self, account, client=None, **kwargs):
+        self.account = account
+        if client is None:
+            self.client = Client(**kwargs)
+        else:
+            self.client = client
+
+    def __getattr__(self, name):
+        '''If the requested method is an account method, return a
+        wrapper with the given account parameters.'''
+        if name not in self.account_methods:
+            return getattr(self.client, name)
+
+        def function(*args, **kwargs):
+            '''Call the client method with the account.'''
+            return getattr(self.client, name)(self.account, *args, **kwargs)
+        return function
+
+
+class Queue(Account):
+    '''Convenience wrapper around the Client class that saves the
+    account and queue setting. This allows you to use methods without
+    specifying the 'account' and 'queue' parameter every time.'''
+
+    def __init__(self, account, queue, **kwargs):
+        super(Queue, self).__init__(account, **kwargs)
+        self.queue = queue
+        self.queue_methods = self.account_methods[2:]
+
+    def __getattr__(self, name):
+        '''If the requested method is a queue method, return a wrapper
+        with the given account and queue parameters.'''
+        if name not in self.queue_methods:
+            return super(Queue, self).__getattr__(name)
+
+        def function(*args, **kwargs):
+            '''Call the client method with the account and queue.'''
+            return getattr(self.client, name)(self.account, self.queue, *args,
+                **kwargs)
+        return function
