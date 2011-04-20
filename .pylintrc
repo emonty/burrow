@@ -1,2 +1,10 @@
+[Design]
+min-public-methods=0
+
+[Messages Control]
+# W0142: Allow use of *args and **kwargs
+# R0201: Don't warn about methods that could be functions
+disable=W0142,R0201
+
 [Variables]
 additional-builtins=_

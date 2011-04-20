@@ -14,11 +14,7 @@
 
 '''Client module for burrow.'''
 
-import ConfigParser
-import logging
-import logging.config
-
-import burrow
+import burrow.common
 import burrow.config
 
 # Default configuration values for this module.
@@ -28,36 +24,22 @@ DEFAULT_BACKEND = 'burrow.backend.http'
 class Client(object):
     '''Client class for burrow.'''
 
-    def __init__(self, url=None, config_files=[],
+    def __init__(self, url=None, config_files=None,
         add_default_log_handler=True):
         '''Initialize a client using the URL and config files from the
         given list. This is passed directly to ConfigParser.read(),
         so files should be in ConfigParser format. This will load
         all the backend class from the configuration.'''
-        if len(config_files) > 0:
-            logging.config.fileConfig(config_files)
-        self._config = ConfigParser.ConfigParser()
-        self._config.read(config_files)
+        self._config = burrow.config.load_config_files(config_files)
         # TODO: Parse URL if given and overwrite any values in self._config.
         self.config = burrow.config.Config(self._config, 'burrow.client')
-        self.log = burrow.get_logger(self.config)
-        if add_default_log_handler:
-            self._add_default_log_handler()
-        self._import_backend()
-
-    def _add_default_log_handler(self):
-        '''Add a default log handler it one has not been set.'''
-        root_log = logging.getLogger()
-        if len(root_log.handlers) > 0 or len(self.log.handlers) > 0:
-            return
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.ERROR)
-        log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        handler.setFormatter(logging.Formatter(log_format))
-        root_log.addHandler(handler)
+        self.log = burrow.common.get_logger(self.config)
+        if len(self.log.handlers) == 0 and add_default_log_handler:
+            burrow.common.add_default_log_handler()
+        self.backend = self._import_backend()
 
     def _import_backend(self):
         '''Load backend given in the 'backend' option.'''
         backend = self.config.get('backend', DEFAULT_BACKEND)
         config = (self._config, backend)
-        self.backend = burrow.import_class(backend, 'Backend')(config)
+        return burrow.common.import_class(backend, 'Backend')(config)

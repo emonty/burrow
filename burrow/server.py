@@ -14,14 +14,11 @@
 
 '''Server module for burrow.'''
 
-import ConfigParser
-import logging
-import logging.config
 import sys
 
 import eventlet
 
-import burrow
+import burrow.common
 import burrow.config
 
 # Default configuration values for this module.
@@ -33,51 +30,38 @@ DEFAULT_THREAD_POOL_SIZE = 1000
 class Server(object):
     '''Server class for burrow.'''
 
-    def __init__(self, config_files=[], add_default_log_handler=True):
+    def __init__(self, config_files=None, add_default_log_handler=True):
         '''Initialize a server using the config files from the given
         list. This is passed directly to ConfigParser.read(), so
         files should be in ConfigParser format. This will load all
         frontend and backend classes from the configuration.'''
-        if len(config_files) > 0:
-            logging.config.fileConfig(config_files)
-        self._config = ConfigParser.ConfigParser()
-        self._config.read(config_files)
+        self._config = burrow.config.load_config_files(config_files)
         self.config = burrow.config.Config(self._config, 'burrow.server')
-        self.log = burrow.get_logger(self.config)
-        if add_default_log_handler:
-            self._add_default_log_handler()
-        self._import_backend()
-        self._import_frontends()
-
-    def _add_default_log_handler(self):
-        '''Add a default log handler it one has not been set.'''
-        root_log = logging.getLogger()
-        if len(root_log.handlers) > 0 or len(self.log.handlers) > 0:
-            return
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.DEBUG)
-        log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        handler.setFormatter(logging.Formatter(log_format))
-        root_log.addHandler(handler)
+        self.log = burrow.common.get_logger(self.config)
+        if len(self.log.handlers) == 0 and add_default_log_handler:
+            burrow.common.add_default_log_handler()
+        self.backend = self._import_backend()
+        self.frontends = self._import_frontends()
 
     def _import_backend(self):
         '''Load backend given in the 'backend' option.'''
         backend = self.config.get('backend', DEFAULT_BACKEND)
         config = (self._config, backend)
-        self.backend = burrow.import_class(backend, 'Backend')(config)
+        return burrow.common.import_class(backend, 'Backend')(config)
 
     def _import_frontends(self):
         '''Load frontends given in the 'frontends' option.'''
-        self.frontends = []
-        frontends = self.config.get('frontends', DEFAULT_FRONTENDS)
-        for frontend in frontends.split(','):
+        frontends = []
+        frontend_names = self.config.get('frontends', DEFAULT_FRONTENDS)
+        for frontend in frontend_names.split(','):
             frontend = frontend.split(':')
             if len(frontend) == 1:
                 frontend.append(None)
             config = (self._config, frontend[0], frontend[1])
-            frontend = burrow.import_class(frontend[0], 'Frontend')
+            frontend = burrow.common.import_class(frontend[0], 'Frontend')
             frontend = frontend(config, self.backend)
-            self.frontends.append(frontend)
+            frontends.append(frontend)
+        return frontends
 
     def run(self):
         '''Create the thread pool and start the main server loop. Wait

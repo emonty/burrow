@@ -43,6 +43,7 @@ def wait_on_queue(method):
     given. This will block until a message in the queue is ready or
     the timeout expires.'''
     def wrapper(self, req, account, queue, *args, **kwargs):
+        '''Wrapper method for wait_on_queue.'''
         wait = 0
         if 'wait' in req.params:
             wait = int(req.params['wait'])
@@ -62,6 +63,8 @@ def wait_on_queue(method):
 
 
 class Frontend(burrow.frontend.Frontend):
+    '''Frontend implementation that implements the Burrow v1.0 protocol
+    using WSGI.'''
 
     def __init__(self, config, backend):
         super(Frontend, self).__init__(config, backend)
@@ -119,7 +122,7 @@ class Frontend(burrow.frontend.Frontend):
         return method(req, **args)
 
     @webob.dec.wsgify
-    def _get_root(self, req):
+    def _get_root(self, _req):
         return webob.exc.HTTPOk(body=json.dumps(['v1.0'], indent=2))
 
     @webob.dec.wsgify

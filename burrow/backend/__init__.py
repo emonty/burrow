@@ -16,10 +16,10 @@
 
 import eventlet
 
-import burrow
+import burrow.common
 
 
-class Backend(burrow.Module):
+class Backend(burrow.common.Module):
     '''Interface that backend implementations must provide.'''
 
     def __init__(self, config):

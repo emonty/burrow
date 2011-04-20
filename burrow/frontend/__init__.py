@@ -14,10 +14,10 @@
 
 '''Frontends for burrow.'''
 
-import burrow
+import burrow.common
 
 
-class Frontend(burrow.Module):
+class Frontend(burrow.common.Module):
     '''Interface that frontend implementations must provide.'''
 
     def __init__(self, config, backend):

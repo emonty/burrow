@@ -25,6 +25,7 @@ import burrow
 
 
 class Shell(object):
+    '''Shell session class.'''
 
     sections = [
         dict(name='Global',
@@ -96,26 +97,58 @@ class Shell(object):
             help=_('What message information to return. Options are: %s') %
             ', '.join(choices))
         self.parser.add_option_group(filters)
-
-    def run(self):
-        (self.options, args) = self.parser.parse_args()
+        (self.options, self.args) = self.parser.parse_args()
         if self.options.commands:
             self.print_help()
-        if len(args) == 0:
-            self.print_help(_('No command given'))
         if self.options.files is None:
             files = []
         else:
             files = self.options.files.split(', ')
         self.client = burrow.Client(url=self.options.url, config_files=files)
-        for section in self.sections:
-            if args[0] in section['commands']:
-                self.run_command(section, args[0], args[1:])
-        self.print_help(_('Command not found'))
 
-    def run_command(self, section, command, args):
+    def run(self):
+        '''Run the command given in arguments or enter an interactive shell.'''
+        if len(self.args) == 0:
+            for command in self._get_command():
+                self.run_command(command[0], command[1:])
+        else:
+            self.run_command(self.args[0], self.args[1:])
+
+    def _get_command(self):
+        '''Get a command from stdin, printing a prompt out if stdin
+        is attached to a TTY.'''
+        prompt = ''
+        if os.isatty(sys.stdin.fileno()):
+            prompt = 'burrow> '
+        try:
+            # Try importing readline to make raw_input functionality more
+            # user friendly.
+            import readline
+        except ImportError:
+            pass
+        while True:
+            try:
+                command = raw_input(prompt)
+            except EOFError:
+                if os.isatty(sys.stdin.fileno()):
+                    print
+                break
+            command = command.split()
+            if len(command) == 0:
+                continue
+            if command[0] == 'exit' or command[0] == 'quit':
+                break
+            yield command
+
+    def run_command(self, command, args):
+        '''Try running a command with the given arguments.'''
+        section = self._get_section(command)
+        if section is None:
+            print _('Command not found: %s') % command
+            return
         if len(args) != len(section['args']):
-            self.print_help(_('Wrong number of arguments'))
+            print _('Wrong number of arguments')
+            return
         if section.get('account', None):
             args.insert(0, self.options.account)
         if command in self.stdin_commands:
@@ -137,9 +170,16 @@ class Shell(object):
                 filters['match_hidden'] = self.options.all
             args.append(filters)
         getattr(self.client.backend, command)(*args)
-        sys.exit(0)
+
+    def _get_section(self, command):
+        '''Lookup command in the defined command sections.'''
+        for section in self.sections:
+            if command in section['commands']:
+                return section
+        return None
 
     def print_help(self, message=None):
+        '''Print the parser generated help along with burrow command help.'''
         if message:
             print message
             print
@@ -148,14 +188,14 @@ class Shell(object):
         for section in self.sections:
             print '%s commands:' % section['name']
             for command in section['commands']:
-                help = ''
+                help_string = ''
                 if section.get('filters', None):
-                    help += ' [filters]'
+                    help_string += ' [filters]'
                 if command in self.attribute_commands:
-                    help += ' [attributes]'
+                    help_string += ' [attributes]'
                 for arg in section['args']:
-                    help += ' <%s>' % arg
-                print '    %s%s' % (command, help)
+                    help_string += ' <%s>' % arg
+                print '    %s%s' % (command, help_string)
             print
         sys.exit(1)
 
