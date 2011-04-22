@@ -69,7 +69,8 @@ class Backend(burrow.common.Module):
         a visible message.'''
         queue = '%s/%s' % (account, queue)
         if queue in self.queues:
-            self.queues[queue].put(0)
+            for count in xrange(0, self.queues[queue].getting()):
+                self.queues[queue].put(0)
 
     def wait(self, account, queue, seconds):
         '''Wait for a message to appear in the account/queue.'''

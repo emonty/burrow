@@ -16,8 +16,13 @@
 
 import httplib
 import json
+import urlparse
 
 import burrow.backend
+
+# Default configuration values for this module.
+DEFAULT_HOST = 'localhost'
+DEFAULT_PORT = 8080
 
 
 class Backend(burrow.backend.Backend):
@@ -26,7 +31,15 @@ class Backend(burrow.backend.Backend):
 
     def __init__(self, config):
         super(Backend, self).__init__(config)
-        self.server = ('localhost', 8080)
+        url = self.config.get('url')
+        if url:
+            url = urlparse.urlparse(url)
+            self.config.set('host', url.hostname)
+            if url.port is not None:
+                self.config.set('port', str(url.port))
+        host = self.config.get('host', DEFAULT_HOST)
+        port = self.config.getint('port', DEFAULT_PORT)
+        self.server = (host, port)
 
     def delete_accounts(self, filters={}):
         url = self._add_parameters('', filters=filters)
@@ -87,7 +100,7 @@ class Backend(burrow.backend.Backend):
             if value is not None:
                 url += '%s%s=%s' % (separator, attribute, value)
                 separator = '&'
-        for filter in ['marker', 'limit', 'match_hidden', 'detail']:
+        for filter in ['marker', 'limit', 'match_hidden', 'detail', 'wait']:
             value = filters.get(filter, None)
             if value is not None:
                 url += '%s%s=%s' % (separator, filter, value)

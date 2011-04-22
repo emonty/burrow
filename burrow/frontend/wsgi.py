@@ -213,7 +213,7 @@ class Frontend(burrow.frontend.Frontend):
     def _filter_message(self, detail, message):
         if detail == 'id':
             return dict(id=message['id'])
-        elif detail == 'metadata':
+        elif detail == 'attributes':
             message = message.copy()
             del message['body']
             return message
@@ -224,6 +224,8 @@ class Frontend(burrow.frontend.Frontend):
     def _return_message(self, req, account, queue, message, detail):
         if 'detail' in req.params:
             detail = req.params['detail']
+        if detail == 'body':
+            return webob.exc.HTTPOk(body=message['body'])
         message = self._filter_message(detail, message)
         if message is not None:
             return webob.exc.HTTPOk(body=json.dumps(message, indent=2))
