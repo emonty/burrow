@@ -63,6 +63,13 @@ class Config(object):
             return method(ConfigParser.DEFAULTSECT, option)
         return default
 
+    def set(self, option, value):
+        '''Set an option for this section.'''
+        section = self.instance or self.section
+        if not self.config.has_section(section):
+            self.config.add_section(section)
+        self.config.set(section, option, value)
+
 
 def load_config_files(config_files):
     '''Load the config files, if any, into the logging and ConfigParser

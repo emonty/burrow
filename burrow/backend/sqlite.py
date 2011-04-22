@@ -16,6 +16,7 @@
 
 import sqlite3
 import time
+import urlparse
 
 import burrow.backend
 
@@ -27,15 +28,19 @@ class Backend(burrow.backend.Backend):
 
     def __init__(self, config):
         super(Backend, self).__init__(config)
+        url = self.config.get('url')
+        if url:
+            url = urlparse.urlparse(url)
+            self.config.set('database', url.netloc)
         database = self.config.get('database', DEFAULT_DATABASE)
         self.db = sqlite3.connect(database)
         self.db.isolation_level = None
         queries = [
-            'CREATE TABLE queues ('
+            'CREATE TABLE IF NOT EXISTS queues ('
                 'account VARCHAR(255) NOT NULL,'
                 'queue VARCHAR(255) NOT NULL,'
                 'PRIMARY KEY (account, queue))',
-            'CREATE TABLE messages ('
+            'CREATE TABLE IF NOT EXISTS messages ('
                 'queue INT UNSIGNED NOT NULL,'
                 'name VARCHAR(255) NOT NULL,'
                 'ttl INT UNSIGNED NOT NULL,'
@@ -150,14 +155,12 @@ class Backend(burrow.backend.Backend):
         ttl = attributes.get('ttl', 0)
         hide = attributes.get('hide', 0)
         if len(result) == 0:
-            query = "INSERT INTO messages VALUES (%d, '%s', %d, %d, '%s')" % \
-                (rowid, message, ttl, hide, body)
-            self.db.execute(query)
+            query = "INSERT INTO messages VALUES (?, ?, ?, ?, ?)"
+            self.db.execute(query, (rowid, message, ttl, hide, body))
             self.notify(account, queue)
             return True
-        query = "UPDATE messages SET ttl=%d, hide=%d, body='%s'" \
-            "WHERE rowid=%d" % (ttl, hide, body, result[0][0])
-        self.db.execute(query)
+        query = "UPDATE messages SET ttl=?, hide=?, body=? WHERE rowid=?"
+        self.db.execute(query, (ttl, hide, body, result[0][0]))
         if hide == 0:
             self.notify(account, queue)
         return False
@@ -254,7 +257,7 @@ class Backend(burrow.backend.Backend):
                 self.notify(result[0], result[1])
 
     def _get_queue(self, account, queue):
-        query = "SELECT COUNT(*) FROM queues " \
+        query = "SELECT rowid FROM queues " \
             "WHERE account='%s' AND queue='%s'" % \
             (account, queue)
         result = self.db.execute(query).fetchall()

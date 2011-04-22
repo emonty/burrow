@@ -20,6 +20,7 @@ import pwd
 import optparse
 import os
 import sys
+import types
 
 import burrow
 
@@ -195,11 +196,13 @@ class Shell(object):
             filters['marker'] = self.options.marker
         if self.options.all is not None:
             filters['match_hidden'] = self.options.all
+        if self.options.detail is not None:
+            filters['detail'] = self.options.detail
         return filters
 
     def _print_result(self, result):
         '''Format and print the result.'''
-        if isinstance(result, list):
+        if isinstance(result, list) or isinstance(result, types.GeneratorType):
             for item in result:
                 if isinstance(item, dict):
                     self._print_message(item)

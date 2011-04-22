@@ -14,6 +14,8 @@
 
 '''Client module for burrow.'''
 
+import urlparse
+
 import burrow.common
 import burrow.config
 
@@ -31,12 +33,22 @@ class Client(object):
         so files should be in ConfigParser format. This will load
         all the backend class from the configuration.'''
         self._config = burrow.config.load_config_files(config_files)
-        # TODO: Parse URL if given and overwrite any values in self._config.
         self.config = burrow.config.Config(self._config, 'burrow.client')
+        if url is not None:
+            self._parse_url(url)
         self.log = burrow.common.get_logger(self.config)
         if len(self.log.handlers) == 0 and add_default_log_handler:
             burrow.common.add_default_log_handler()
         self.backend = self._import_backend()
+
+    def _parse_url(self, url):
+        '''Parse a backend URL and set config values so it overrides
+        previous values.'''
+        backend = 'burrow.backend.' + urlparse.urlparse(url).scheme
+        self.config.set('backend', backend)
+        if not self._config.has_section(backend):
+            self._config.add_section(backend)
+        self._config.set(backend, 'url', url)
 
     def _import_backend(self):
         '''Load backend given in the 'backend' option.'''
