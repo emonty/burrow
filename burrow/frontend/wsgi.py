@@ -261,15 +261,11 @@ class Frontend(burrow.frontend.Frontend):
             ttl = int(req.params['ttl'])
         else:
             ttl = default_ttl
-        if ttl is not None and ttl > 0:
-            ttl += int(time.time())
         attributes['ttl'] = ttl
         if 'hide' in req.params:
             hide = int(req.params['hide'])
         else:
             hide = default_hide
-        if hide is not None and hide > 0:
-            hide += int(time.time())
         attributes['hide'] = hide
         return attributes
 

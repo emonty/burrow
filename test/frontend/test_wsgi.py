@@ -274,16 +274,9 @@ class TestWSGIMemory(unittest.TestCase):
         self.assertEquals(len(first), len(second))
         for x in xrange(0, len(second)):
             self.assertEquals(first[x]['id'], second[x]['id'])
-            ttl = second[x]['ttl']
-            if ttl > 0:
-                ttl += int(time.time())
-            self.assertAlmostEquals(first[x]['ttl'], ttl)
-            hide = second[x]['hide']
-            if hide > 0:
-                hide += int(time.time())
-            self.assertAlmostEquals(first[x]['hide'], hide)
-            body = second[x]['body']
-            self.assertEquals(first[x]['body'], body)
+            self.assertAlmostEquals(first[x]['ttl'], second[x]['ttl'])
+            self.assertAlmostEquals(first[x]['hide'], second[x]['hide'])
+            self.assertEquals(first[x]['body'], second[x]['body'])
 
     def _delete_url(self, url, status=204, **kwargs):
         return self._url('DELETE', url, status=status, **kwargs)
