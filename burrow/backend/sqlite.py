@@ -126,10 +126,14 @@ class Backend(burrow.backend.Backend):
         comma = ''
         values = tuple()
         if ttl is not None:
+            if ttl > 0:
+                ttl += int(time.time())
             query += '%s ttl=?' % comma
             values += (ttl,)
             comma = ','
         if hide is not None:
+            if hide > 0:
+                hide += int(time.time())
             query += '%s hide=?' % comma
             values += (hide,)
             comma = ','
@@ -153,7 +157,11 @@ class Backend(burrow.backend.Backend):
             (rowid, message)
         result = self.db.execute(query).fetchall()
         ttl = attributes.get('ttl', 0)
+        if ttl > 0:
+            ttl += int(time.time())
         hide = attributes.get('hide', 0)
+        if hide > 0:
+            hide += int(time.time())
         if len(result) == 0:
             query = "INSERT INTO messages VALUES (?, ?, ?, ?, ?)"
             self.db.execute(query, (rowid, message, ttl, hide, body))
@@ -191,7 +199,13 @@ class Backend(burrow.backend.Backend):
         if len(result) == 0:
             return None
         row = result[0]
-        return dict(id=row[0], ttl=row[1], hide=row[2], body=row[3])
+        ttl = row[1]
+        if ttl > 0:
+            ttl -= int(time.time())
+        hide = row[2]
+        if hide > 0:
+            hide -= int(time.time())
+        return dict(id=row[0], ttl=ttl, hide=hide, body=row[3])
 
     def update_message(self, account, queue, message, attributes):
         rowid = self._get_queue(account, queue)
@@ -205,9 +219,15 @@ class Backend(burrow.backend.Backend):
         ttl = attributes.get('ttl', None)
         hide = attributes.get('hide', None)
         if ttl is not None:
+            message['ttl'] = ttl
+            if ttl > 0:
+                ttl += int(time.time())
             query += "%s ttl=%d" % (comma, ttl)
             comma = ','
         if hide is not None:
+            message['hide'] = hide
+            if hide > 0:
+                hide += int(time.time())
             query += "%s hide=%d" % (comma, hide)
             comma = ','
         if comma == '':
@@ -287,4 +307,10 @@ class Backend(burrow.backend.Backend):
             query += " LIMIT %d" % filters['limit']
         result = self.db.execute(query).fetchall()
         for row in result:
-            yield dict(id=row[0], ttl=row[1], hide=row[2], body=row[3])
+            ttl = row[1]
+            if ttl > 0:
+                ttl -= int(time.time())
+            hide = row[2]
+            if hide > 0:
+                hide -= int(time.time())
+            yield dict(id=row[0], ttl=ttl, hide=hide, body=row[3])

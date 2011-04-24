@@ -57,7 +57,11 @@ class Backend(burrow.backend.Backend):
     def create_message(self, account, queue, message, body, attributes={}):
         account, queue = self.accounts.get_queue(account, queue, True)
         ttl = attributes.get('ttl', 0)
+        if ttl > 0:
+            ttl += int(time.time())
         hide = attributes.get('hide', 0)
+        if hide > 0:
+            hide += int(time.time())
         for index in xrange(0, len(queue[3])):
             if queue[3][index]['id'] == message:
                 message = queue[3][index]
@@ -82,6 +86,10 @@ class Backend(burrow.backend.Backend):
                 del queue[3][index]
                 if len(queue[3]) == 0:
                     self.accounts.delete_queue(account[0], queue[0])
+                if message['ttl'] > 0:
+                    message['ttl'] -= int(time.time())
+                if message['hide'] > 0:
+                    message['hide'] -= int(time.time())
                 return message
         return None
 
@@ -91,7 +99,14 @@ class Backend(burrow.backend.Backend):
             return None
         for index in xrange(0, len(queue[3])):
             if queue[3][index]['id'] == message:
-                return queue[3][index]
+                ttl = queue[3][index]['ttl']
+                if ttl > 0:
+                    ttl -= int(time.time())
+                hide = queue[3][index]['hide']
+                if hide > 0:
+                    hide -= int(time.time())
+                return dict(id=message, ttl=ttl, hide=hide,
+                    body=queue[3][index]['body'])
         return None
 
     def update_message(self, account, queue, message, attributes={}):
@@ -99,7 +114,11 @@ class Backend(burrow.backend.Backend):
         if queue is None:
             return None
         ttl = attributes.get('ttl', None)
+        if ttl is not None and ttl > 0:
+            ttl += int(time.time())
         hide = attributes.get('hide', None)
+        if hide is not None and hide > 0:
+            hide += int(time.time())
         for index in xrange(0, len(queue[3])):
             if queue[3][index]['id'] == message:
                 message = queue[3][index]
@@ -156,7 +175,11 @@ class Backend(burrow.backend.Backend):
         limit = filters.get('limit', None)
         match_hidden = filters.get('match_hidden', False)
         ttl = attributes.get('ttl', None)
+        if ttl is not None and ttl > 0:
+            ttl += int(time.time())
         hide = attributes.get('hide', None)
+        if hide is not None and hide > 0:
+            hide += int(time.time())
         while index < total:
             message = queue[3][index]
             if not match_hidden and message['hide'] != 0:
@@ -173,7 +196,14 @@ class Backend(burrow.backend.Backend):
                 total -= 1
             else:
                 index += 1
-            yield message
+            relative_ttl = message['ttl']
+            if relative_ttl > 0:
+                relative_ttl -= int(time.time())
+            relative_hide = message['hide']
+            if relative_hide > 0:
+                relative_hide -= int(time.time())
+            yield dict(id=message['id'], ttl=relative_ttl, hide=relative_hide,
+                    body=message['body'])
             if limit:
                 limit -= 1
                 if limit == 0:
