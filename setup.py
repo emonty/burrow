@@ -54,6 +54,7 @@ if frontend:
         'init_catalog': frontend.init_catalog,
         'update_catalog': frontend.update_catalog})
 
+requirements = ['routes', 'eventlet', 'webob']
 
 setup(
     name=name,
@@ -66,6 +67,7 @@ setup(
     packages=find_packages(exclude=['test', 'bin']),
     test_suite='nose.collector',
     cmdclass=cmdclass,
+    install_requires=requirements,
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: Apache Software License',
