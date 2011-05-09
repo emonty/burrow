@@ -68,8 +68,8 @@ class Frontend(burrow.frontend.Frontend):
 
     def __init__(self, config, backend):
         super(Frontend, self).__init__(config, backend)
-        self.default_ttl = self.config.get('default_ttl', DEFAULT_TTL)
-        self.default_hide = self.config.get('default_hide', DEFAULT_HIDE)
+        self.default_ttl = int(self.config.get('default_ttl', DEFAULT_TTL))
+        self.default_hide = int(self.config.get('default_hide', DEFAULT_HIDE))
         mapper = routes.Mapper()
         mapper.connect('/', action='root')
         mapper.connect('/v1.0', action='version')
