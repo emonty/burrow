@@ -50,6 +50,7 @@ Details
     :maxdepth: 1
 
     protocols
+    examples
 
 Source Code
 ===========
