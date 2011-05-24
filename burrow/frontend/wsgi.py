@@ -205,7 +205,10 @@ class Frontend(burrow.frontend.Frontend):
     def _put_message(self, req, account, queue, message):
         attributes = self._parse_attributes(req, self.default_ttl,
             self.default_hide)
-        if self.backend.create_message(account, queue, message, req.body,
+        body = ''
+        for chunk in iter(lambda: req.body_file.read(16384), ''):
+            body += chunk
+        if self.backend.create_message(account, queue, message, body,
             attributes):
             return webob.exc.HTTPCreated()
         return webob.exc.HTTPNoContent()
