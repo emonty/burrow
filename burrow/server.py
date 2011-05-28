@@ -81,4 +81,7 @@ class Server(object):
 
 
 if __name__ == '__main__':
+    if '-h' in sys.argv[1:] or '--help' in sys.argv[1:]:
+        print 'Usage: burrowd [config files]'
+        sys.exit(1)
     Server(sys.argv[1:]).run()
