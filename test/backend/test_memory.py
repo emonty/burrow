@@ -67,8 +67,8 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         self.assertEquals(['a'], list(self.backend.get_accounts()))
         filters = dict(detail='bad')
-        with self.assertRaises(burrow.backend.BadDetail):
-            accounts = list(self.backend.delete_accounts(filters))
+        accounts = self.backend.delete_accounts(filters)
+        self.assertRaises(burrow.backend.BadDetail, list, accounts)
         self.assertEquals([], list(self.backend.delete_accounts()))
 
     def test_account_get_detail_all(self):
@@ -99,8 +99,8 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         self.assertEquals(['a'], list(self.backend.get_accounts()))
         filters = dict(detail='bad')
-        with self.assertRaises(burrow.backend.BadDetail):
-            accounts = list(self.backend.get_accounts(filters))
+        accounts = self.backend.get_accounts(filters)
+        self.assertRaises(burrow.backend.BadDetail, list, accounts)
         self.assertEquals([], list(self.backend.delete_accounts()))
 
     def test_account_get_marker(self):
