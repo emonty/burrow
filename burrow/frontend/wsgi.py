@@ -128,7 +128,7 @@ class Frontend(burrow.frontend.Frontend):
     @webob.dec.wsgify
     def _delete_version(self, req):
         filters = self._parse_filters(req)
-        self.backend.delete_accounts(filters)
+        [account for account in self.backend.delete_accounts(filters)]
         return webob.exc.HTTPNoContent()
 
     @webob.dec.wsgify
@@ -142,7 +142,7 @@ class Frontend(burrow.frontend.Frontend):
     @webob.dec.wsgify
     def _delete_account(self, req, account):
         filters = self._parse_filters(req)
-        self.backend.delete_queues(account, filters)
+        [queue for queue in self.backend.delete_queues(account, filters)]
         return webob.exc.HTTPNoContent()
 
     @webob.dec.wsgify

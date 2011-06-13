@@ -54,7 +54,8 @@ class Backend(burrow.backend.Backend):
         if len(filters) == 0:
             self.db.execute('DELETE FROM queues')
             self.db.execute('DELETE FROM messages')
-            return
+            return []
+        return []
 
     def get_accounts(self, filters={}):
         query = 'SELECT DISTINCT account FROM queues'
@@ -76,10 +77,11 @@ class Backend(burrow.backend.Backend):
         for row in self.db.execute(query, (account,)):
             ids.append(str(row[0]))
         if len(ids) == 0:
-            return
+            return []
         query = 'DELETE FROM messages WHERE queue IN (%s)'
         self.db.execute(query % ','.join(ids))
         self.db.execute('DELETE FROM queues WHERE account=?', (account,))
+        return []
 
     def get_queues(self, account, filters={}):
         query = 'SELECT queue FROM queues WHERE account=?'

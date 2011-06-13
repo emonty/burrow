@@ -32,13 +32,13 @@ class Backend(burrow.common.Module):
         thread_pool.spawn_n(self._clean)
 
     def delete_accounts(self, filters={}):
-        pass
+        return []
 
     def get_accounts(self, filters={}):
         return []
 
     def delete_queues(self, account, filters={}):
-        pass
+        return []
 
     def get_queues(self, account, filters={}):
         return []
@@ -55,13 +55,14 @@ class Backend(burrow.common.Module):
     def create_message(self, account, queue, message, body, attributes={}):
         return True
 
-    def delete_message(self, account, queue, message):
+    def delete_message(self, account, queue, message, filters={}):
         return None
 
-    def get_message(self, account, queue, message):
+    def get_message(self, account, queue, message, filters={}):
         return None
 
-    def update_message(self, account, queue, message, attributes={}):
+    def update_message(self, account, queue, message, attributes={},
+        filters={}):
         return None
 
     def notify(self, account, queue):
@@ -95,3 +96,6 @@ class Backend(burrow.common.Module):
         while True:
             self.clean()
             eventlet.sleep(1)
+
+class BadDetail(Exception):
+    pass
