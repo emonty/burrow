@@ -251,7 +251,8 @@ class Frontend(burrow.frontend.Frontend):
             filters['limit'] = int(req.params['limit'])
         if 'marker' in req.params:
             filters['marker'] = req.params['marker']
-        if 'hidden' in req.params and req.params['hidden'].lower() == 'true':
+        if 'match_hidden' in req.params and \
+            req.params['match_hidden'].lower() == 'true':
             filters['match_hidden'] = True
         return filters
 

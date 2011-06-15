@@ -41,8 +41,10 @@ class Backend(burrow.backend.Backend):
         elif detail is not None and detail not in ['id', 'all']:
             raise burrow.backend.BadDetail(detail)
         for account in self.accounts.iter(filters):
-            if detail is not None:
+            if detail is 'id':
                 yield account.name
+            elif detail is 'all':
+                yield dict(id=account.name)
 
     def delete_queues(self, account, filters={}):
         return self.accounts.delete_queues(account, filters)
@@ -264,8 +266,10 @@ class IndexedList(object):
             raise burrow.backend.BadDetail(detail)
         for item in self.iter(filters):
             self.delete_item(item.name)
-            if detail is not None:
+            if detail is 'id':
                 yield item.name
+            elif detail is 'all':
+                yield dict(id=item.name)
 
     def delete_item(self, name):
         if name not in self.index:

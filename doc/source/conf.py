@@ -223,7 +223,4 @@ latex_documents = [
 #latex_use_modindex = True
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'python': ('http://docs.python.org/', None),
-                       'glance': ('http://glance.openstack.org', None),
-                       'nova': ('http://nova.openstack.org', None),
-                       'swift': ('http://swift.openstack.org', None)}
+intersphinx_mapping = {'python': ('http://docs.python.org/', None)}

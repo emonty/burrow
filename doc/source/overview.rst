@@ -135,9 +135,9 @@ the body you must recreate the message with the same ID.
 
 The currently supported message attributes are:
 
-* ttl=SECONDS - How long the message will exist in the queue.
+* ``ttl=SECONDS`` - How long the message will exist in the queue.
 
-* hide=SECONDS - How long the message should be hidden from list
+* ``hide=SECONDS`` - How long the message should be hidden from list
   requests. This allows for delayed insert of messages and "in
   progress" time when a worker is processing the message but is not
   ready to delete it.
@@ -151,22 +151,23 @@ Methods that support accessing multiple objects (accounts, queues,
 or messages) can accept a set of filters to apply. The currently
 supported filters are:
 
-* limit=COUNT - Limit the number of matched messages. This allows
+* ``limit=COUNT`` - Limit the number of matched messages. This allows
   a worker to grab as few or as many messages as it can handle at
   once. For example, a worker resizing images may only grab one at
   a time, but a worker processing log messages may grab many for
   efficient batch processing.
 
-* marker=ID - Only match IDs after the given ID. This allows for
+* ``marker=ID`` - Only match IDs after the given ID. This allows for
   multi-cast messages by always having a 'hide' attribute value of
   0 and not deleting messages (let the TTL delete them automatically).
 
-* show_hidden=true|false - Whether or not to match messages that are
-  currently hidden. The default is false.
+* ``match_hidden=true|false`` - Whether or not to match messages
+  that are currently hidden. The default is false.
 
-* detail=none|id|metadata|all - What details of an object to
-  return. The metadata and all options only apply to messages
-  currently, which translate to attributes and body.
+* ``detail=none|id|attributes|body|all`` - What details of an object to
+  return. The ``body`` option is only available for messages. The
+  ``all`` option is made up of ``attributes`` and ``body`` for
+  messages, and is just ``attributes`` for other types.
 
 Design
 ======
