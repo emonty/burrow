@@ -66,7 +66,7 @@ class TestWSGIMemory(unittest.TestCase):
         for x in range(0, 3):
             result = self._post_url('/a/q/1?ttl=%d&hide=%d' % (x, x))
             self.assertEquals(result, {'id': '1'})
-            result = self._get_url('/a/q?hidden=true')
+            result = self._get_url('/a/q?match_hidden=true')
             message = self.message('1', x, x, body='b')
             self.assertMessages(result, [message])
         self._delete_url('/a/q/1')
@@ -76,7 +76,7 @@ class TestWSGIMemory(unittest.TestCase):
             url = '/a/q/1?ttl=%d&hide=%d' % (x, x)
             status = 201 if x == 0 else 204
             self._put_url(url, body=str(x), status=status)
-            result = self._get_url('/a/q?hidden=true')
+            result = self._get_url('/a/q?match_hidden=true')
             message = self.message('1', x, x, body=str(x))
             self.assertMessages(result, [message])
         self._delete_url('/a/q/1')
@@ -262,7 +262,8 @@ class TestWSGIMemory(unittest.TestCase):
         self.success = False
         self._put_url('/a/q/1?hide=10')
         thread = eventlet.spawn(self._message_wait)
-        eventlet.spawn_after(0.2, self._post_url, '/a/q?hide=0&hidden=true')
+        url = '/a/q?hide=0&match_hidden=true'
+        eventlet.spawn_after(0.2, self._post_url, url)
         thread.wait()
         self.assertTrue(self.success)
         self._delete_url('/a/q/1')

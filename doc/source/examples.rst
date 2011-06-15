@@ -76,12 +76,12 @@ Worker2: long-polling worker, request blocks until a message is ready
 
 ``DELETE /account/queue?limit=100&wait=60&detail=all``
 
-Client: insert messages
+Client: insert messages::
 
-``PUT /account/queue/id1``
-``PUT /account/queue/id2``
-``PUT /account/queue/id3``
-...
+    PUT /account/queue/id1
+    PUT /account/queue/id2
+    PUT /account/queue/id3
+    ...
 
 Worker1: Return from the blocking DELETE request with all new messages
 and process them
