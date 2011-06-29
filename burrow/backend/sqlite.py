@@ -97,8 +97,9 @@ class Backend(burrow.backend.Backend):
             yield message
         if len(ids) == 0:
             return
-        query = 'DELETE FROM messages WHERE queue=%d AND name IN (%s)'
-        self.db.execute(query % (rowid, ','.join(ids)))
+        values = (rowid,) + tuple(ids)
+        query = 'DELETE FROM messages WHERE queue=? AND name IN (%s)'
+        self.db.execute(query % ','.join('?' * len(ids)), values)
         query = 'SELECT rowid FROM messages WHERE queue=? LIMIT 1'
         if len(self.db.execute(query, (rowid,)).fetchall()) == 0:
             query = 'DELETE FROM queues WHERE rowid=?'
@@ -142,8 +143,9 @@ class Backend(burrow.backend.Backend):
         if comma == '':
             return
         values += (rowid,)
+        values += tuple(ids)
         query += ' WHERE queue=? AND name IN (%s)'
-        self.db.execute(query % ','.join(ids), values)
+        self.db.execute(query % ','.join('?' * len(ids)), values)
         self.notify(account, queue)
 
     def create_message(self, account, queue, message, body, attributes):
