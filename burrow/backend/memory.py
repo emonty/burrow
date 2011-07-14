@@ -50,8 +50,16 @@ class Backend(burrow.backend.Backend):
         return self.accounts.delete_queues(account, filters)
 
     def get_queues(self, account, filters={}):
+        detail = filters.get('detail', 'id')
+        if detail is 'none':
+            detail = None
+        elif detail is not None and detail not in ['id', 'all']:
+            raise burrow.backend.BadDetail(detail)
         for queue in self.accounts.get_queues(account, filters):
-            yield queue.name
+            if detail is 'id':
+                yield queue.name
+            elif detail is 'all':
+                yield dict(id=queue.name)
 
     def delete_messages(self, account, queue, filters={}):
         return self._scan_queue(account, queue, filters, delete=True)
