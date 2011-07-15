@@ -21,7 +21,7 @@ import burrow.backend
 
 class Backend(burrow.backend.Backend):
     '''This backend stores all data using native Python data
-    structures. It uses a linked list of tuples to store data
+    structures. It uses a linked list of objects to store data
     (accounts, queues, and messages) with a dict as a secondary index
     into this list. This is required so we can have O(1) appends,
     deletes, and lookups by name, along with easy traversal starting
@@ -35,31 +35,13 @@ class Backend(burrow.backend.Backend):
         return self.accounts.delete(filters)
 
     def get_accounts(self, filters={}):
-        detail = filters.get('detail', 'id')
-        if detail is 'none':
-            detail = None
-        elif detail is not None and detail not in ['id', 'all']:
-            raise burrow.backend.BadDetail(detail)
-        for account in self.accounts.iter(filters):
-            if detail is 'id':
-                yield account.name
-            elif detail is 'all':
-                yield dict(id=account.name)
+        return self.accounts.iter_detail(filters)
 
     def delete_queues(self, account, filters={}):
         return self.accounts.delete_queues(account, filters)
 
     def get_queues(self, account, filters={}):
-        detail = filters.get('detail', 'id')
-        if detail is 'none':
-            detail = None
-        elif detail is not None and detail not in ['id', 'all']:
-            raise burrow.backend.BadDetail(detail)
-        for queue in self.accounts.get_queues(account, filters):
-            if detail is 'id':
-                yield queue.name
-            elif detail is 'all':
-                yield dict(id=queue.name)
+        return self.accounts.get_queues(account, filters)
 
     def delete_messages(self, account, queue, filters={}):
         return self._scan_queue(account, queue, filters, delete=True)
@@ -267,11 +249,7 @@ class IndexedList(object):
             self.last = None
             self.index.clear()
             return
-        detail = filters.get('detail', None)
-        if detail is 'none':
-            detail = None
-        elif detail is not None and detail not in ['id', 'all']:
-            raise burrow.backend.BadDetail(detail)
+        detail = self._get_detail(filters)
         for item in self.iter(filters):
             self.delete_item(item.name)
             if detail is 'id':
@@ -312,6 +290,22 @@ class IndexedList(object):
                     break
             item = item.next
 
+    def iter_detail(self, filters={}):
+        detail = self._get_detail(filters, 'id')
+        for item in self.iter(filters):
+            if detail is 'id':
+                yield item.name
+            elif detail is 'all':
+                yield dict(id=item.name)
+
+    def _get_detail(self, filters, default=None):
+        detail = filters.get('detail', default)
+        if detail is 'none':
+            detail = None
+        elif detail is not None and detail not in ['id', 'all']:
+            raise burrow.backend.BadDetail(detail)
+        return detail
+
 
 class Account(Item):
 
@@ -348,9 +342,10 @@ class Accounts(IndexedList):
 
     def get_queues(self, account, filters={}):
         account = self.get(account)
-        if account is not None:
-            for queue in account.queues.iter(filters):
-                yield queue
+        if account is None:
+            return []
+        else:
+            return account.queues.iter_detail(filters)
 
 
 class Queue(Item):

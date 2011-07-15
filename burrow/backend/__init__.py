@@ -97,5 +97,6 @@ class Backend(burrow.common.Module):
             self.clean()
             eventlet.sleep(1)
 
+
 class BadDetail(Exception):
     pass
