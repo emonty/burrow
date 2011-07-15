@@ -113,44 +113,44 @@ class Frontend(burrow.frontend.Frontend):
     def _route(self, req):
         args = req.environ['wsgiorg.routing_args'][1]
         if not args:
-            return webob.Response(status=404)
+            return self._response(status=404)
         action = args.pop('action')
         method = getattr(self, '_%s_%s' % (req.method.lower(), action), False)
         if not method:
-            return webob.Response(status=400)
+            return self._response(status=400)
         return method(req, **args)
 
     @webob.dec.wsgify
     def _get_root(self, _req):
-        return self._response(['v1.0'])
+        return self._response(body=['v1.0'])
 
     @webob.dec.wsgify
     def _delete_version(self, req):
         filters = self._parse_filters(req)
         [account for account in self.backend.delete_accounts(filters)]
-        return webob.Response(status=204)
+        return self._response()
 
     @webob.dec.wsgify
     def _get_version(self, req):
         filters = self._parse_filters(req)
         accounts = [account for account in self.backend.get_accounts(filters)]
         if len(accounts) == 0:
-            return webob.Response(status=404)
-        return webob.Response(body=json.dumps(accounts, indent=2))
+            return self._response(status=404)
+        return self._response(body=accounts)
 
     @webob.dec.wsgify
     def _delete_account(self, req, account):
         filters = self._parse_filters(req)
         [queue for queue in self.backend.delete_queues(account, filters)]
-        return webob.Response(status=204)
+        return self._response()
 
     @webob.dec.wsgify
     def _get_account(self, req, account):
         filters = self._parse_filters(req)
         queues = [queue for queue in self.backend.get_queues(account, filters)]
         if len(queues) == 0:
-            return webob.Response(status=404)
-        return self._response(queues)
+            return self._response(status=404)
+        return self._response(body=queues)
 
     @webob.dec.wsgify
     @wait_on_queue
@@ -181,14 +181,14 @@ class Frontend(burrow.frontend.Frontend):
     def _delete_message(self, req, account, queue, message):
         message = self.backend.delete_message(account, queue, message)
         if message is None:
-            return webob.Response(status=404)
+            return self._response(status=404)
         return self._return_message(req, account, queue, message, 'none')
 
     @webob.dec.wsgify
     def _get_message(self, req, account, queue, message):
         message = self.backend.get_message(account, queue, message)
         if message is None:
-            return webob.Response(status=404)
+            return self._response(status=404)
         return self._return_message(req, account, queue, message, 'all')
 
     @webob.dec.wsgify
@@ -197,7 +197,7 @@ class Frontend(burrow.frontend.Frontend):
         message = self.backend.update_message(account, queue, message,
             attributes)
         if message is None:
-            return webob.Response(status=404)
+            return self._response(status=404)
         return self._return_message(req, account, queue, message, 'id')
 
     @webob.dec.wsgify
@@ -206,11 +206,11 @@ class Frontend(burrow.frontend.Frontend):
             self.default_hide)
         body = ''
         for chunk in iter(lambda: req.body_file.read(16384), ''):
-            body += chunk
+            body += str(chunk)
         if self.backend.create_message(account, queue, message, body,
             attributes):
-            return webob.Response(status=201)
-        return webob.Response(status=204)
+            return self._response(status=201)
+        return self._response()
 
     def _filter_message(self, detail, message):
         if detail == 'id':
@@ -227,16 +227,16 @@ class Frontend(burrow.frontend.Frontend):
         if 'detail' in req.params:
             detail = req.params['detail']
         if detail == 'body':
-            return webob.Response(body=body,
+            return self._response(body=message['body'],
                 content_type="application/octet-stream")
         message = self._filter_message(detail, message)
         if message is not None:
-            return self._response(message)
-        return webob.Response(status=204)
+            return self._response(body=message)
+        return self._response()
 
     def _return_messages(self, req, account, queue, messages, detail):
         if len(messages) == 0:
-            return webob.Response(status=404)
+            return self._response(status=404)
         if 'detail' in req.params:
             detail = req.params['detail']
         filtered_messages = []
@@ -245,8 +245,8 @@ class Frontend(burrow.frontend.Frontend):
             if message is not None:
                 filtered_messages.append(message)
         if len(filtered_messages) == 0:
-            return webob.Response(status=204)
-        return self._response(filtered_messages)
+            return self._response()
+        return self._response(body=filtered_messages)
 
     def _parse_filters(self, req):
         filters = {}
@@ -273,9 +273,18 @@ class Frontend(burrow.frontend.Frontend):
         attributes['hide'] = hide
         return attributes
 
-    def _response(self, body):
-        body=json.dumps(body, indent=2)
-        return webob.Response(body=body, content_type="application/json")
+    def _response(self, status=200, body=None, content_type=None):
+        if content_type is None:
+            if body is None:
+                content_type = ''
+            else:
+                content_type = 'application/json'
+        if content_type is 'application/json':
+            body=json.dumps(body, indent=2)
+        if body is None and status == 200:
+            status = 204
+        return webob.Response(status=status, body=body,
+            content_type=content_type)
 
 
 class WSGILog(object):
