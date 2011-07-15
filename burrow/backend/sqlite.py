@@ -209,7 +209,7 @@ class Backend(burrow.backend.Backend):
         hide = row[2]
         if hide > 0:
             hide -= int(time.time())
-        return dict(id=row[0], ttl=ttl, hide=hide, body=row[3])
+        return dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))
 
     def update_message(self, account, queue, message, attributes):
         rowid = self._get_queue(account, queue)
@@ -317,4 +317,4 @@ class Backend(burrow.backend.Backend):
             hide = row[2]
             if hide > 0:
                 hide -= int(time.time())
-            yield dict(id=row[0], ttl=ttl, hide=hide, body=row[3])
+            yield dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))
