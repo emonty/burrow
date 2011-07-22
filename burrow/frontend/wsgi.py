@@ -288,7 +288,7 @@ class Frontend(burrow.frontend.Frontend):
             else:
                 content_type = 'application/json'
         if content_type == 'application/json':
-            body=json.dumps(body, indent=2)
+            body = json.dumps(body, indent=2)
         if body is None and status == 200:
             status = 204
         return webob.Response(status=status, body=body,
