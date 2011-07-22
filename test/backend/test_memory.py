@@ -13,10 +13,7 @@
 # limitations under the License.
 
 import ConfigParser
-import time
 import unittest
-
-import eventlet
 
 import burrow.backend.memory
 
