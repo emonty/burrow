@@ -78,9 +78,9 @@ class Backend(burrow.backend.Backend):
                         break
                     limit -= 1
                 current_account = row[1]
-                if detail is 'id':
+                if detail == 'id':
                     yield row[1]
-                elif detail is 'all':
+                elif detail == 'all':
                     yield dict(id=row[1])
             ids.append(row[0])
             if len(ids) == 999:
@@ -115,9 +115,9 @@ class Backend(burrow.backend.Backend):
                 continue
             elif marker is not None and not marker_found:
                 break
-            if detail is 'id':
+            if detail == 'id':
                 yield row[0]
-            elif detail is 'all':
+            elif detail == 'all':
                 yield dict(id=row[0])
         if marker is not None and not marker_found:
             filters = dict(filters)
@@ -138,9 +138,9 @@ class Backend(burrow.backend.Backend):
                 continue
             elif marker is not None and not marker_found:
                 break
-            if detail is 'id':
+            if detail == 'id':
                 yield row[1]
-            elif detail is 'all':
+            elif detail == 'all':
                 yield dict(id=row[1])
             ids.append(row[0])
             if len(ids) == 999:
@@ -166,9 +166,9 @@ class Backend(burrow.backend.Backend):
                 continue
             elif marker is not None and not marker_found:
                 break
-            if detail is 'id':
+            if detail == 'id':
                 yield row[0]
-            elif detail is 'all':
+            elif detail == 'all':
                 yield dict(id=row[0])
         if marker is not None and not marker_found:
             filters = dict(filters)
@@ -199,7 +199,7 @@ class Backend(burrow.backend.Backend):
 
     def _get_detail(self, filters, default=None):
         detail = filters.get('detail', default)
-        if detail is 'none':
+        if detail == 'none':
             detail = None
         elif detail is not None and detail not in ['id', 'all']:
             raise burrow.backend.BadDetail(detail)

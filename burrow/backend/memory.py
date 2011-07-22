@@ -252,9 +252,9 @@ class IndexedList(object):
         detail = self._get_detail(filters)
         for item in self.iter(filters):
             self.delete_item(item.name)
-            if detail is 'id':
+            if detail == 'id':
                 yield item.name
-            elif detail is 'all':
+            elif detail == 'all':
                 yield dict(id=item.name)
 
     def delete_item(self, name):
@@ -293,14 +293,14 @@ class IndexedList(object):
     def iter_detail(self, filters={}):
         detail = self._get_detail(filters, 'id')
         for item in self.iter(filters):
-            if detail is 'id':
+            if detail == 'id':
                 yield item.name
-            elif detail is 'all':
+            elif detail == 'all':
                 yield dict(id=item.name)
 
     def _get_detail(self, filters, default=None):
         detail = filters.get('detail', default)
-        if detail is 'none':
+        if detail == 'none':
             detail = None
         elif detail is not None and detail not in ['id', 'all']:
             raise burrow.backend.BadDetail(detail)
