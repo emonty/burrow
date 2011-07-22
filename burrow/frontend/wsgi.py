@@ -70,10 +70,10 @@ class Frontend(burrow.frontend.Frontend):
         self.default_ttl = int(self.config.get('default_ttl', DEFAULT_TTL))
         self.default_hide = int(self.config.get('default_hide', DEFAULT_HIDE))
         mapper = routes.Mapper()
-        mapper.connect('/', action='root')
-        mapper.connect('/v1.0', action='version')
-        mapper.connect('/v1.0/{account}', action='account')
-        mapper.connect('/v1.0/{account}/{queue}', action='queue')
+        mapper.connect('/', action='versions')
+        mapper.connect('/v1.0', action='accounts')
+        mapper.connect('/v1.0/{account}', action='queues')
+        mapper.connect('/v1.0/{account}/{queue}', action='messages')
         mapper.connect('/v1.0/{account}/{queue}/{message}', action='message')
         self._routes = routes.middleware.RoutesMiddleware(self._route, mapper)
 
@@ -121,17 +121,20 @@ class Frontend(burrow.frontend.Frontend):
         return method(req, **args)
 
     @webob.dec.wsgify
-    def _get_root(self, _req):
+    def _get_versions(self, _req):
         return self._response(body=['v1.0'])
 
     @webob.dec.wsgify
-    def _delete_version(self, req):
+    def _delete_accounts(self, req):
         filters = self._parse_filters(req)
-        [account for account in self.backend.delete_accounts(filters)]
-        return self._response()
+        accounts = [account for account in
+            self.backend.delete_accounts(filters)]
+        if len(accounts) == 0:
+            return self._response()
+        return self._response(body=accounts)
 
     @webob.dec.wsgify
-    def _get_version(self, req):
+    def _get_accounts(self, req):
         filters = self._parse_filters(req)
         accounts = [account for account in self.backend.get_accounts(filters)]
         if len(accounts) == 0:
@@ -139,13 +142,16 @@ class Frontend(burrow.frontend.Frontend):
         return self._response(body=accounts)
 
     @webob.dec.wsgify
-    def _delete_account(self, req, account):
+    def _delete_queues(self, req, account):
         filters = self._parse_filters(req)
-        [queue for queue in self.backend.delete_queues(account, filters)]
-        return self._response()
+        queues = [queue for queue in
+            self.backend.delete_queues(account, filters)]
+        if len(queues) == 0:
+            return self._response()
+        return self._response(body=queues)
 
     @webob.dec.wsgify
-    def _get_account(self, req, account):
+    def _get_queues(self, req, account):
         filters = self._parse_filters(req)
         queues = [queue for queue in self.backend.get_queues(account, filters)]
         if len(queues) == 0:
@@ -154,7 +160,7 @@ class Frontend(burrow.frontend.Frontend):
 
     @webob.dec.wsgify
     @wait_on_queue
-    def _delete_queue(self, req, account, queue):
+    def _delete_messages(self, req, account, queue):
         filters = self._parse_filters(req)
         messages = [message for message in
             self.backend.delete_messages(account, queue, filters)]
@@ -162,7 +168,7 @@ class Frontend(burrow.frontend.Frontend):
 
     @webob.dec.wsgify
     @wait_on_queue
-    def _get_queue(self, req, account, queue):
+    def _get_messages(self, req, account, queue):
         filters = self._parse_filters(req)
         messages = [message for message in
             self.backend.get_messages(account, queue, filters)]
@@ -170,7 +176,7 @@ class Frontend(burrow.frontend.Frontend):
 
     @webob.dec.wsgify
     @wait_on_queue
-    def _post_queue(self, req, account, queue):
+    def _post_messages(self, req, account, queue):
         attributes = self._parse_attributes(req)
         filters = self._parse_filters(req)
         messages = [message for message in
@@ -257,6 +263,8 @@ class Frontend(burrow.frontend.Frontend):
         if 'match_hidden' in req.params and \
             req.params['match_hidden'].lower() == 'true':
             filters['match_hidden'] = True
+        if 'detail' in req.params:
+            filters['detail'] = req.params['detail']
         return filters
 
     def _parse_attributes(self, req, default_ttl=None, default_hide=None):
@@ -279,8 +287,8 @@ class Frontend(burrow.frontend.Frontend):
                 content_type = ''
             else:
                 content_type = 'application/json'
-        if content_type is 'application/json':
-            body=json.dumps(body, indent=2)
+        if content_type == 'application/json':
+            body = json.dumps(body, indent=2)
         if body is None and status == 200:
             status = 204
         return webob.Response(status=status, body=body,
