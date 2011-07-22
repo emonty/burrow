@@ -214,8 +214,9 @@ class Backend(burrow.backend.Backend):
             yield message
         if len(ids) == 0:
             return
-        query = 'DELETE FROM messages WHERE queue=%d AND name IN (%s)'
-        self.db.execute(query % (rowid, ','.join(ids)))
+        values = (rowid,) + tuple(ids)
+        query = 'DELETE FROM messages WHERE queue=? AND name IN (%s)'
+        self.db.execute(query % ','.join('?' * len(ids)), values)
         query = 'SELECT rowid FROM messages WHERE queue=? LIMIT 1'
         if len(self.db.execute(query, (rowid,)).fetchall()) == 0:
             query = 'DELETE FROM queues WHERE rowid=?'
@@ -259,8 +260,9 @@ class Backend(burrow.backend.Backend):
         if comma == '':
             return
         values += (rowid,)
+        values += tuple(ids)
         query += ' WHERE queue=? AND name IN (%s)'
-        self.db.execute(query % ','.join(ids), values)
+        self.db.execute(query % ','.join('?' * len(ids)), values)
         self.notify(account, queue)
 
     def create_message(self, account, queue, message, body, attributes={}):
@@ -324,7 +326,7 @@ class Backend(burrow.backend.Backend):
         hide = row[2]
         if hide > 0:
             hide -= int(time.time())
-        return dict(id=row[0], ttl=ttl, hide=hide, body=row[3])
+        return dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))
 
     def update_message(self, account, queue, message, attributes):
         rowid = self._get_queue(account, queue)
@@ -432,4 +434,4 @@ class Backend(burrow.backend.Backend):
             hide = row[2]
             if hide > 0:
                 hide -= int(time.time())
-            yield dict(id=row[0], ttl=ttl, hide=hide, body=row[3])
+            yield dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))

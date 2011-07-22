@@ -22,7 +22,6 @@ import eventlet.wsgi
 import routes
 import routes.middleware
 import webob.dec
-import webob.exc
 
 import burrow.frontend
 
@@ -114,44 +113,44 @@ class Frontend(burrow.frontend.Frontend):
     def _route(self, req):
         args = req.environ['wsgiorg.routing_args'][1]
         if not args:
-            return webob.exc.HTTPNotFound()
+            return self._response(status=404)
         action = args.pop('action')
         method = getattr(self, '_%s_%s' % (req.method.lower(), action), False)
         if not method:
-            return webob.exc.HTTPBadRequest()
+            return self._response(status=400)
         return method(req, **args)
 
     @webob.dec.wsgify
     def _get_root(self, _req):
-        return webob.exc.HTTPOk(body=json.dumps(['v1.0'], indent=2))
+        return self._response(body=['v1.0'])
 
     @webob.dec.wsgify
     def _delete_version(self, req):
         filters = self._parse_filters(req)
         [account for account in self.backend.delete_accounts(filters)]
-        return webob.exc.HTTPNoContent()
+        return self._response()
 
     @webob.dec.wsgify
     def _get_version(self, req):
         filters = self._parse_filters(req)
         accounts = [account for account in self.backend.get_accounts(filters)]
         if len(accounts) == 0:
-            return webob.exc.HTTPNotFound()
-        return webob.exc.HTTPOk(body=json.dumps(accounts, indent=2))
+            return self._response(status=404)
+        return self._response(body=accounts)
 
     @webob.dec.wsgify
     def _delete_account(self, req, account):
         filters = self._parse_filters(req)
         [queue for queue in self.backend.delete_queues(account, filters)]
-        return webob.exc.HTTPNoContent()
+        return self._response()
 
     @webob.dec.wsgify
     def _get_account(self, req, account):
         filters = self._parse_filters(req)
         queues = [queue for queue in self.backend.get_queues(account, filters)]
         if len(queues) == 0:
-            return webob.exc.HTTPNotFound()
-        return webob.exc.HTTPOk(body=json.dumps(queues, indent=2))
+            return self._response(status=404)
+        return self._response(body=queues)
 
     @webob.dec.wsgify
     @wait_on_queue
@@ -182,14 +181,14 @@ class Frontend(burrow.frontend.Frontend):
     def _delete_message(self, req, account, queue, message):
         message = self.backend.delete_message(account, queue, message)
         if message is None:
-            return webob.exc.HTTPNotFound()
+            return self._response(status=404)
         return self._return_message(req, account, queue, message, 'none')
 
     @webob.dec.wsgify
     def _get_message(self, req, account, queue, message):
         message = self.backend.get_message(account, queue, message)
         if message is None:
-            return webob.exc.HTTPNotFound()
+            return self._response(status=404)
         return self._return_message(req, account, queue, message, 'all')
 
     @webob.dec.wsgify
@@ -198,17 +197,20 @@ class Frontend(burrow.frontend.Frontend):
         message = self.backend.update_message(account, queue, message,
             attributes)
         if message is None:
-            return webob.exc.HTTPNotFound()
+            return self._response(status=404)
         return self._return_message(req, account, queue, message, 'id')
 
     @webob.dec.wsgify
     def _put_message(self, req, account, queue, message):
         attributes = self._parse_attributes(req, self.default_ttl,
             self.default_hide)
-        if self.backend.create_message(account, queue, message, req.body,
+        body = ''
+        for chunk in iter(lambda: req.body_file.read(16384), ''):
+            body += str(chunk)
+        if self.backend.create_message(account, queue, message, body,
             attributes):
-            return webob.exc.HTTPCreated()
-        return webob.exc.HTTPNoContent()
+            return self._response(status=201)
+        return self._response()
 
     def _filter_message(self, detail, message):
         if detail == 'id':
@@ -225,15 +227,16 @@ class Frontend(burrow.frontend.Frontend):
         if 'detail' in req.params:
             detail = req.params['detail']
         if detail == 'body':
-            return webob.exc.HTTPOk(body=message['body'])
+            return self._response(body=message['body'],
+                content_type="application/octet-stream")
         message = self._filter_message(detail, message)
         if message is not None:
-            return webob.exc.HTTPOk(body=json.dumps(message, indent=2))
-        return webob.exc.HTTPNoContent()
+            return self._response(body=message)
+        return self._response()
 
     def _return_messages(self, req, account, queue, messages, detail):
         if len(messages) == 0:
-            return webob.exc.HTTPNotFound()
+            return self._response(status=404)
         if 'detail' in req.params:
             detail = req.params['detail']
         filtered_messages = []
@@ -242,8 +245,8 @@ class Frontend(burrow.frontend.Frontend):
             if message is not None:
                 filtered_messages.append(message)
         if len(filtered_messages) == 0:
-            return webob.exc.HTTPNoContent()
-        return webob.exc.HTTPOk(body=json.dumps(filtered_messages, indent=2))
+            return self._response()
+        return self._response(body=filtered_messages)
 
     def _parse_filters(self, req):
         filters = {}
@@ -269,6 +272,19 @@ class Frontend(burrow.frontend.Frontend):
             hide = default_hide
         attributes['hide'] = hide
         return attributes
+
+    def _response(self, status=200, body=None, content_type=None):
+        if content_type is None:
+            if body is None:
+                content_type = ''
+            else:
+                content_type = 'application/json'
+        if content_type is 'application/json':
+            body=json.dumps(body, indent=2)
+        if body is None and status == 200:
+            status = 204
+        return webob.Response(status=status, body=body,
+            content_type=content_type)
 
 
 class WSGILog(object):
