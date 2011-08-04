@@ -16,6 +16,7 @@
 
 import json
 import time
+import types
 
 import eventlet
 import eventlet.wsgi
@@ -23,6 +24,7 @@ import routes
 import routes.middleware
 import webob.dec
 
+import burrow.backend
 import burrow.frontend
 
 # Default configuration values for this module.
@@ -127,61 +129,46 @@ class Frontend(burrow.frontend.Frontend):
     @webob.dec.wsgify
     def _delete_accounts(self, req):
         filters = self._parse_filters(req)
-        accounts = [account for account in
-            self.backend.delete_accounts(filters)]
-        if len(accounts) == 0:
-            return self._response()
-        return self._response(body=accounts)
+        return self._response(body=self.backend.delete_accounts(filters))
 
     @webob.dec.wsgify
     def _get_accounts(self, req):
         filters = self._parse_filters(req)
-        accounts = [account for account in self.backend.get_accounts(filters)]
-        if len(accounts) == 0:
-            return self._response(status=404)
-        return self._response(body=accounts)
+        return self._response(body=self.backend.get_accounts(filters))
 
     @webob.dec.wsgify
     def _delete_queues(self, req, account):
         filters = self._parse_filters(req)
-        queues = [queue for queue in
-            self.backend.delete_queues(account, filters)]
-        if len(queues) == 0:
-            return self._response()
+        queues = self.backend.delete_queues(account, filters)
         return self._response(body=queues)
 
     @webob.dec.wsgify
     def _get_queues(self, req, account):
         filters = self._parse_filters(req)
-        queues = [queue for queue in self.backend.get_queues(account, filters)]
-        if len(queues) == 0:
-            return self._response(status=404)
-        return self._response(body=queues)
+        return self._response(body=self.backend.get_queues(account, filters))
 
     @webob.dec.wsgify
     @wait_on_queue
     def _delete_messages(self, req, account, queue):
         filters = self._parse_filters(req)
-        messages = [message for message in
-            self.backend.delete_messages(account, queue, filters)]
-        return self._return_messages(req, account, queue, messages, 'none')
+        messages = self.backend.delete_messages(account, queue, filters)
+        return self._response(body=messages)
 
     @webob.dec.wsgify
     @wait_on_queue
     def _get_messages(self, req, account, queue):
         filters = self._parse_filters(req)
-        messages = [message for message in
-            self.backend.get_messages(account, queue, filters)]
-        return self._return_messages(req, account, queue, messages, 'all')
+        messages = self.backend.get_messages(account, queue, filters)
+        return self._response(body=messages)
 
     @webob.dec.wsgify
     @wait_on_queue
     def _post_messages(self, req, account, queue):
         attributes = self._parse_attributes(req)
         filters = self._parse_filters(req)
-        messages = [message for message in
-            self.backend.update_messages(account, queue, attributes, filters)]
-        return self._return_messages(req, account, queue, messages, 'all')
+        messages = self.backend.update_messages(account, queue, attributes,
+            filters)
+        return self._response(body=messages)
 
     @webob.dec.wsgify
     def _delete_message(self, req, account, queue, message):
@@ -240,20 +227,6 @@ class Frontend(burrow.frontend.Frontend):
             return self._response(body=message)
         return self._response()
 
-    def _return_messages(self, req, account, queue, messages, detail):
-        if len(messages) == 0:
-            return self._response(status=404)
-        if 'detail' in req.params:
-            detail = req.params['detail']
-        filtered_messages = []
-        for message in messages:
-            message = self._filter_message(detail, message)
-            if message is not None:
-                filtered_messages.append(message)
-        if len(filtered_messages) == 0:
-            return self._response()
-        return self._response(body=filtered_messages)
-
     def _parse_filters(self, req):
         filters = {}
         if 'limit' in req.params:
@@ -282,15 +255,23 @@ class Frontend(burrow.frontend.Frontend):
         return attributes
 
     def _response(self, status=200, body=None, content_type=None):
-        if content_type is None:
-            if body is None:
-                content_type = ''
-            else:
+        if isinstance(body, types.GeneratorType):
+            try:
+                body = list(body)
+            except burrow.backend.NotFound:
+                body = None
+                status = 404
+        if body == []:
+            body = None
+        if body is None:
+            content_type = ''
+            if status == 200:
+                status = 204
+        else:
+            if content_type is None:
                 content_type = 'application/json'
-        if content_type == 'application/json':
-            body = json.dumps(body, indent=2)
-        if body is None and status == 200:
-            status = 204
+            if content_type == 'application/json':
+                body = json.dumps(body, indent=2)
         return webob.Response(status=status, body=body,
             content_type=content_type)
 

@@ -98,5 +98,9 @@ class Backend(burrow.common.Module):
             eventlet.sleep(1)
 
 
+class NotFound(Exception):
+    pass
+
+
 class BadDetail(Exception):
     pass

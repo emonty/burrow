@@ -24,7 +24,7 @@ class Backend(burrow.backend.Backend):
     structures. It uses a linked list of objects to store data
     (accounts, queues, and messages) with a dict as a secondary index
     into this list. This is required so we can have O(1) appends,
-    deletes, and lookups by name, along with easy traversal starting
+    deletes, and lookups by id, along with easy traversal starting
     anywhere in the list.'''
 
     def __init__(self, config):
@@ -32,194 +32,197 @@ class Backend(burrow.backend.Backend):
         self.accounts = Accounts()
 
     def delete_accounts(self, filters={}):
-        return self.accounts.delete(filters)
+        if len(filters) == 0:
+            self.accounts.reset()
+            return
+        detail = self._get_detail(filters)
+        for account in self.accounts.iter(filters):
+            self.accounts.delete(account.id)
+            if detail is not None:
+                yield account.detail(detail)
 
     def get_accounts(self, filters={}):
-        return self.accounts.iter_detail(filters)
+        detail = self._get_detail(filters, 'id')
+        for account in self.accounts.iter(filters):
+            if detail is not None:
+                yield account.detail(detail)
 
     def delete_queues(self, account, filters={}):
-        return self.accounts.delete_queues(account, filters)
+        account = self.accounts.get(account)
+        if account is None:
+            raise burrow.backend.NotFound()
+        if len(filters) == 0:
+            account.queues.reset()
+        else:
+            detail = self._get_detail(filters)
+            for queue in account.queues.iter(filters):
+                account.queues.delete(queue.id)
+                if detail is not None:
+                    yield queue.detail(detail)
+        if account.queues.count() == 0:
+            self.accounts.delete(account.id)
 
     def get_queues(self, account, filters={}):
-        return self.accounts.get_queues(account, filters)
+        account = self.accounts.get(account)
+        if account is None:
+            raise burrow.backend.NotFound()
+        detail = self._get_detail(filters, 'id')
+        for queue in account.queues.iter(filters):
+            if detail is not None:
+                yield queue.detail(detail)
 
     def delete_messages(self, account, queue, filters={}):
-        return self._scan_queue(account, queue, filters, delete=True)
+        account, queue = self.accounts.get_queue(account, queue)
+        if queue is None:
+            raise burrow.backend.NotFound()
+        if len(filters) == 0:
+            queue.messages.reset()
+        else:
+            detail = self._get_message_detail(filters)
+            for message in queue.messages.iter(filters):
+                queue.messages.delete(message.id)
+                if detail is not None:
+                    yield message.detail(detail)
+        if queue.messages.count() == 0:
+            self.accounts.delete_queue(account.id, queue.id)
 
     def get_messages(self, account, queue, filters={}):
-        return self._scan_queue(account, queue, filters)
+        account, queue = self.accounts.get_queue(account, queue)
+        if queue is None:
+            raise burrow.backend.NotFound()
+        detail = self._get_message_detail(filters, 'all')
+        for message in queue.messages.iter(filters):
+            if detail is not None:
+                yield message.detail(detail)
 
     def update_messages(self, account, queue, attributes={}, filters={}):
-        return self._scan_queue(account, queue, filters, attributes)
+        account, queue = self.accounts.get_queue(account, queue)
+        if queue is None:
+            raise burrow.backend.NotFound()
+        notify = False
+        ttl, hide = self._get_attributes(attributes)
+        detail = self._get_message_detail(filters)
+        for message in queue.messages.iter(filters):
+            if ttl is not None:
+                message.ttl = ttl
+            if hide is not None:
+                message.hide = hide
+                if hide == 0:
+                    notify = True
+            if detail is not None:
+                yield message.detail(detail)
+        if notify:
+            self.notify(account.id, queue.id)
 
     def create_message(self, account, queue, message, body, attributes={}):
         account, queue = self.accounts.get_queue(account, queue, True)
-        ttl = attributes.get('ttl', 0)
-        if ttl > 0:
-            ttl += int(time.time())
-        hide = attributes.get('hide', 0)
-        if hide > 0:
-            hide += int(time.time())
-        for index in xrange(0, len(queue.messages)):
-            if queue.messages[index]['id'] == message:
-                message = queue.messages[index]
-                message['ttl'] = ttl
-                message['hide'] = hide
-                message['body'] = body
-                if hide == 0:
-                    self.notify(account.name, queue.name)
-                return False
-        message = dict(id=message, ttl=ttl, hide=hide, body=body)
-        queue.messages.append(message)
-        self.notify(account.name, queue.name)
-        return True
+        ttl, hide = self._get_attributes(attributes, default_ttl=0,
+            default_hide=0)
+        if queue.messages.get(message) is None:
+            created = True
+        else:
+            created = False
+        message = queue.messages.get(message, True)
+        message.ttl = ttl
+        message.hide = hide
+        message.body = body
+        if created or hide == 0:
+            self.notify(account.id, queue.id)
+        return created
 
     def delete_message(self, account, queue, message, filters={}):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             return None
-        for index in xrange(0, len(queue.messages)):
-            if queue.messages[index]['id'] == message:
-                message = queue.messages[index]
-                del queue.messages[index]
-                if len(queue.messages) == 0:
-                    self.accounts.delete_queue(account.name, queue.name)
-                if message['ttl'] > 0:
-                    message['ttl'] -= int(time.time())
-                if message['hide'] > 0:
-                    message['hide'] -= int(time.time())
-                return message
-        return None
+        message = queue.messages.get(message)
+        if message is None:
+            return None
+        queue.messages.delete(message.id)
+        if queue.messages.count() == 0:
+            self.accounts.delete_queue(account.id, queue.id)
+        return message.detail()
 
     def get_message(self, account, queue, message, filters={}):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             return None
-        for index in xrange(0, len(queue.messages)):
-            if queue.messages[index]['id'] == message:
-                ttl = queue.messages[index]['ttl']
-                if ttl > 0:
-                    ttl -= int(time.time())
-                hide = queue.messages[index]['hide']
-                if hide > 0:
-                    hide -= int(time.time())
-                return dict(id=message, ttl=ttl, hide=hide,
-                    body=queue.messages[index]['body'])
-        return None
+        message = queue.messages.get(message)
+        if message is None:
+            return None
+        return message.detail()
 
     def update_message(self, account, queue, message, attributes={},
         filters={}):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             return None
-        ttl = attributes.get('ttl', None)
-        if ttl is not None and ttl > 0:
-            ttl += int(time.time())
-        hide = attributes.get('hide', None)
-        if hide is not None and hide > 0:
-            hide += int(time.time())
-        for index in xrange(0, len(queue.messages)):
-            if queue.messages[index]['id'] == message:
-                message = queue.messages[index]
-                if ttl is not None:
-                    message['ttl'] = ttl
-                if hide is not None:
-                    message['hide'] = hide
-                    if hide == 0:
-                        self.notify(account.name, queue.name)
-                return message
-        return None
+        ttl, hide = self._get_attributes(attributes)
+        message = queue.messages.get(message)
+        if message is None:
+            return None
+        if ttl is not None:
+            message.ttl = ttl
+        if hide is not None:
+            message.hide = hide
+            if hide == 0:
+                self.notify(account.id, queue.id)
+        return message.detail()
 
     def clean(self):
         now = int(time.time())
         for account in self.accounts.iter():
             for queue in account.queues.iter():
-                index = 0
                 notify = False
-                total = len(queue.messages)
-                while index < total:
-                    message = queue.messages[index]
-                    if 0 < message['ttl'] <= now:
-                        del queue.messages[index]
-                        total -= 1
-                    else:
-                        if 0 < message['hide'] <= now:
-                            message['hide'] = 0
-                            notify = True
-                        index += 1
+                for message in queue.messages.iter(dict(match_hidden=True)):
+                    if 0 < message.ttl <= now:
+                        queue.messages.delete(message.id)
+                    elif 0 < message.hide <= now:
+                        message.hide = 0
+                        notify = True
                 if notify:
-                    self.notify(account.name, queue.name)
-                if len(queue.messages) == 0:
-                    self.accounts.delete_queue(account.name, queue.name)
+                    self.notify(account.id, queue.id)
+                if queue.messages.count() == 0:
+                    self.accounts.delete_queue(account.id, queue.id)
 
-    def _scan_queue(self, account, queue, filters, attributes={},
-        delete=False):
-        account, queue = self.accounts.get_queue(account, queue)
-        if queue is None:
-            return
-        index = 0
-        notify = False
-        if 'marker' in filters and filters['marker'] is not None:
-            found = False
-            for index in xrange(0, len(queue.messages)):
-                message = queue.messages[index]
-                if message['id'] == filters['marker']:
-                    index += 1
-                    found = True
-                    break
-            if not found:
-                index = 0
-        messages = []
-        total = len(queue.messages)
-        limit = filters.get('limit', None)
-        match_hidden = filters.get('match_hidden', False)
-        ttl = attributes.get('ttl', None)
+    def _get_attributes(self, attributes, default_ttl=None, default_hide=None):
+        ttl = attributes.get('ttl', default_ttl)
         if ttl is not None and ttl > 0:
             ttl += int(time.time())
-        hide = attributes.get('hide', None)
+        hide = attributes.get('hide', default_hide)
         if hide is not None and hide > 0:
             hide += int(time.time())
-        while index < total:
-            message = queue.messages[index]
-            if not match_hidden and message['hide'] != 0:
-                index += 1
-                continue
-            if ttl is not None:
-                message['ttl'] = ttl
-            if hide is not None:
-                message['hide'] = hide
-                if hide == 0:
-                    notify = True
-            if delete:
-                del queue.messages[index]
-                total -= 1
-            else:
-                index += 1
-            relative_ttl = message['ttl']
-            if relative_ttl > 0:
-                relative_ttl -= int(time.time())
-            relative_hide = message['hide']
-            if relative_hide > 0:
-                relative_hide -= int(time.time())
-            yield dict(id=message['id'], ttl=relative_ttl, hide=relative_hide,
-                    body=message['body'])
-            if limit:
-                limit -= 1
-                if limit == 0:
-                    break
-        if notify:
-            self.notify(account.name, queue.name)
-        if len(queue.messages) == 0:
-            self.accounts.delete_queue(account.name, queue.name)
+        return ttl, hide
+
+    def _get_detail(self, filters, default=None):
+        detail = filters.get('detail', default)
+        if detail == 'none':
+            detail = None
+        elif detail is not None and detail not in ['id', 'all']:
+            raise burrow.backend.BadDetail(detail)
+        return detail
+
+    def _get_message_detail(self, filters, default=None):
+        detail = filters.get('detail', default)
+        options = ['id', 'attributes', 'body', 'all']
+        if detail == 'none':
+            detail = None
+        elif detail is not None and detail not in options:
+            raise burrow.backend.BadDetail(detail)
+        return detail
 
 
 class Item(object):
     '''Object to represent elements in a indexed linked list.'''
 
-    def __init__(self, name=None):
-        self.name = name
+    def __init__(self, id=None):
+        self.id = id
         self.next = None
         self.prev = None
+
+    def detail(self, detail):
+        if detail == 'all':
+            return dict(id=self.id)
+        return self.id
 
 
 class IndexedList(object):
@@ -237,30 +240,16 @@ class IndexedList(object):
             item.prev = self.last
             self.last.next = item
         self.last = item
-        self.index[item.name] = item
+        self.index[item.id] = item
         return item
 
     def count(self):
         return len(self.index)
 
-    def delete(self, filters):
-        if len(filters) == 0:
-            self.first = None
-            self.last = None
-            self.index.clear()
+    def delete(self, id):
+        if id not in self.index:
             return
-        detail = self._get_detail(filters)
-        for item in self.iter(filters):
-            self.delete_item(item.name)
-            if detail == 'id':
-                yield item.name
-            elif detail == 'all':
-                yield dict(id=item.name)
-
-    def delete_item(self, name):
-        if name not in self.index:
-            return
-        item = self.index.pop(name)
+        item = self.index.pop(id)
         if item.next is not None:
             item.next.prev = item.prev
         if item.prev is not None:
@@ -270,9 +259,11 @@ class IndexedList(object):
         if self.last == item:
             self.last = item.prev
 
-    def get(self, name):
-        if name in self.index:
-            return self.index[name]
+    def get(self, id, create=False):
+        if id in self.index:
+            return self.index[id]
+        elif create:
+            return self.add(self.item_class(id))
         return None
 
     def iter(self, filters={}):
@@ -281,6 +272,8 @@ class IndexedList(object):
             item = self.index[marker].next
         else:
             item = self.first
+        if item is None:
+            raise burrow.backend.NotFound()
         limit = filters.get('limit', None)
         while item is not None:
             yield item
@@ -290,46 +283,31 @@ class IndexedList(object):
                     break
             item = item.next
 
-    def iter_detail(self, filters={}):
-        detail = self._get_detail(filters, 'id')
-        for item in self.iter(filters):
-            if detail == 'id':
-                yield item.name
-            elif detail == 'all':
-                yield dict(id=item.name)
-
-    def _get_detail(self, filters, default=None):
-        detail = filters.get('detail', default)
-        if detail == 'none':
-            detail = None
-        elif detail is not None and detail not in ['id', 'all']:
-            raise burrow.backend.BadDetail(detail)
-        return detail
+    def reset(self):
+        if self.count() == 0:
+            raise burrow.backend.NotFound()
+        self.first = None
+        self.last = None
+        self.index.clear()
 
 
 class Account(Item):
 
-    def __init__(self, name=None):
-        super(Account, self).__init__(name)
+    def __init__(self, id=None):
+        super(Account, self).__init__(id)
         self.queues = Queues()
 
 
 class Accounts(IndexedList):
 
+    item_class = Account
+
     def delete_queue(self, account, queue):
         account = self.get(account)
         if account is not None:
-            account.queues.delete_item(queue)
+            account.queues.delete(queue)
             if account.queues.count() == 0:
-                self.delete_item(account.name)
-
-    def delete_queues(self, account, filters):
-        account = self.get(account)
-        if account is not None:
-            for queue in account.queues.delete(filters):
-                yield queue
-            if account.queues.count() == 0:
-                self.delete_item(account.name)
+                self.delete(account.id)
 
     def get_queue(self, account, queue, create=False):
         if account in self.index:
@@ -340,26 +318,64 @@ class Accounts(IndexedList):
             return None, None
         return account, account.queues.get(queue, create)
 
-    def get_queues(self, account, filters={}):
-        account = self.get(account)
-        if account is None:
-            return []
-        else:
-            return account.queues.iter_detail(filters)
-
 
 class Queue(Item):
 
-    def __init__(self, name=None):
-        super(Queue, self).__init__(name)
-        self.messages = []
+    def __init__(self, id=None):
+        super(Queue, self).__init__(id)
+        self.messages = Messages()
 
 
 class Queues(IndexedList):
 
-    def get(self, queue, create=False):
-        if queue in self.index:
-            return self.index[queue]
-        elif create:
-            return self.add(Queue(queue))
-        return None
+    item_class = Queue
+
+
+class Message(Item):
+
+    def __init__(self, id=None):
+        super(Message, self).__init__(id)
+        self.ttl = 0
+        self.hide = 0
+        self.body = None
+
+    def detail(self, detail=None):
+        if detail == 'id':
+            return self.id
+        elif detail == 'body':
+            return self.body
+        ttl = self.ttl
+        if ttl > 0:
+            ttl -= int(time.time())
+        hide = self.hide
+        if hide > 0:
+            hide -= int(time.time())
+        if detail == 'attributes':
+            return dict(id=self.id, ttl=ttl, hide=hide)
+        return dict(id=self.id, ttl=ttl, hide=hide, body=self.body)
+
+
+class Messages(IndexedList):
+
+    item_class = Message
+
+    def iter(self, filters={}):
+        marker = filters.get('marker', None)
+        if marker is not None and marker in self.index:
+            item = self.index[marker].next
+        else:
+            item = self.first
+        limit = filters.get('limit', None)
+        match_hidden = filters.get('match_hidden', False)
+        count = 0
+        while item is not None:
+            if match_hidden or item.hide == 0:
+                count += 1
+                yield item
+                if limit:
+                    limit -= 1
+                    if limit == 0:
+                        break
+            item = item.next
+        if count == 0:
+            raise burrow.backend.NotFound()
