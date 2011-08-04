@@ -151,36 +151,24 @@ class Frontend(burrow.frontend.Frontend):
     @wait_on_queue
     def _delete_messages(self, req, account, queue):
         filters = self._parse_filters(req)
-        try:
-            messages = [message for message in
-                self.backend.delete_messages(account, queue, filters)]
-        except burrow.backend.NotFound:
-            return self._response(status=404)
-        return self._return_messages(req, account, queue, messages, 'none')
+        messages = self.backend.delete_messages(account, queue, filters)
+        return self._response(body=messages)
 
     @webob.dec.wsgify
     @wait_on_queue
     def _get_messages(self, req, account, queue):
         filters = self._parse_filters(req)
-        try:
-            messages = [message for message in
-                self.backend.get_messages(account, queue, filters)]
-        except burrow.backend.NotFound:
-            return self._response(status=404)
-        return self._return_messages(req, account, queue, messages, 'all')
+        messages = self.backend.get_messages(account, queue, filters)
+        return self._response(body=messages)
 
     @webob.dec.wsgify
     @wait_on_queue
     def _post_messages(self, req, account, queue):
         attributes = self._parse_attributes(req)
         filters = self._parse_filters(req)
-        try:
-            messages = [message for message in
-                self.backend.update_messages(account, queue, attributes,
-                filters)]
-        except burrow.backend.NotFound:
-            return self._response(status=404)
-        return self._return_messages(req, account, queue, messages, 'all')
+        messages = self.backend.update_messages(account, queue, attributes,
+            filters)
+        return self._response(body=messages)
 
     @webob.dec.wsgify
     def _delete_message(self, req, account, queue, message):
@@ -238,20 +226,6 @@ class Frontend(burrow.frontend.Frontend):
         if message is not None:
             return self._response(body=message)
         return self._response()
-
-    def _return_messages(self, req, account, queue, messages, detail):
-        if len(messages) == 0:
-            return self._response(status=404)
-        if 'detail' in req.params:
-            detail = req.params['detail']
-        filtered_messages = []
-        for message in messages:
-            message = self._filter_message(detail, message)
-            if message is not None:
-                filtered_messages.append(message)
-        if len(filtered_messages) == 0:
-            return self._response()
-        return self._response(body=filtered_messages)
 
     def _parse_filters(self, req):
         filters = {}

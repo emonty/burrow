@@ -263,7 +263,7 @@ class TestWSGIMemory(unittest.TestCase):
         self._put_url('/a/q/1?hide=10')
         thread = eventlet.spawn(self._message_wait)
         url = '/a/q?hide=0&match_hidden=true'
-        eventlet.spawn_after(0.2, self._post_url, url)
+        eventlet.spawn_after(0.2, self._post_url, url, status=204)
         thread.wait()
         self.assertTrue(self.success)
         self._delete_url('/a/q/1')

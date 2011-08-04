@@ -229,9 +229,11 @@ class Backend(burrow.backend.Backend):
         result = self._get_messages(account, queue, filters)
         rowid = result.next()
         ids = []
+        detail = self._get_message_detail(filters)
         for message in result:
-            ids.append(message['id'])
-            yield message
+            ids.append(message[0])
+            if detail is not None:
+                yield self._message_detail(message, detail)
         if len(ids) == 0:
             return
         values = (rowid,) + tuple(ids)
@@ -245,35 +247,41 @@ class Backend(burrow.backend.Backend):
     def get_messages(self, account, queue, filters={}):
         result = self._get_messages(account, queue, filters)
         result.next()
-        return result
+        detail = self._get_message_detail(filters, 'all')
+        for message in result:
+            if detail is not None:
+                yield self._message_detail(message, detail)
 
     def update_messages(self, account, queue, attributes={}, filters={}):
         result = self._get_messages(account, queue, filters)
         rowid = result.next()
         ids = []
         ttl = attributes.get('ttl', None)
+        if ttl is not None and ttl > 0:
+            ttl += int(time.time())
         hide = attributes.get('hide', None)
+        if hide is not None and hide > 0:
+            hide += int(time.time())
+        detail = self._get_message_detail(filters)
         for message in result:
-            ids.append(message['id'])
+            message = list(message)
+            ids.append(message[0])
             if ttl is not None:
-                message['ttl'] = ttl
+                message[1] = ttl
             if hide is not None:
-                message['hide'] = hide
-            yield message
+                message[2] = hide
+            if detail is not None:
+                yield self._message_detail(message, detail)
         if len(ids) == 0:
             return
         query = 'UPDATE messages SET'
         comma = ''
         values = tuple()
         if ttl is not None:
-            if ttl > 0:
-                ttl += int(time.time())
             query += '%s ttl=?' % comma
             values += (ttl,)
             comma = ','
         if hide is not None:
-            if hide > 0:
-                hide += int(time.time())
             query += '%s hide=?' % comma
             values += (hide,)
             comma = ','
@@ -448,13 +456,31 @@ class Backend(burrow.backend.Backend):
             query += " LIMIT %d" % filters['limit']
         count = 0
         for row in self.db.execute(query):
-            ttl = row[1]
-            if ttl > 0:
-                ttl -= int(time.time())
-            hide = row[2]
-            if hide > 0:
-                hide -= int(time.time())
+            yield row
             count += 1
-            yield dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))
         if count == 0:
             raise burrow.backend.NotFound()
+
+    def _get_message_detail(self, filters, default=None):
+        detail = filters.get('detail', default)
+        options = ['id', 'attributes', 'body', 'all']
+        if detail == 'none':
+            detail = None
+        elif detail is not None and detail not in options:
+            raise burrow.backend.BadDetail(detail)
+        return detail
+
+    def _message_detail(self, row, detail):
+        if detail == 'id':
+            return row[0]
+        elif detail == 'body':
+            return str(row[3])
+        ttl = row[1]
+        if ttl > 0:
+            ttl -= int(time.time())
+        hide = row[2]
+        if hide > 0:
+            hide -= int(time.time())
+        if detail == 'attributes':
+            return dict(id=self.id, ttl=ttl, hide=hide)
+        return dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))

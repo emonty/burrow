@@ -75,14 +75,14 @@ class Backend(burrow.backend.Backend):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             raise burrow.backend.NotFound()
-        #if len(filters) == 0:
-        #    queue.messages.reset()
-        #else:
-        detail = self._get_detail(filters)
-        for message in queue.messages.iter(filters):
-            queue.messages.delete(message.id)
-                #if detail is not None:
-            yield message.detail(detail)
+        if len(filters) == 0:
+            queue.messages.reset()
+        else:
+            detail = self._get_message_detail(filters)
+            for message in queue.messages.iter(filters):
+                queue.messages.delete(message.id)
+                if detail is not None:
+                    yield message.detail(detail)
         if queue.messages.count() == 0:
             self.accounts.delete_queue(account.id, queue.id)
 
@@ -90,8 +90,10 @@ class Backend(burrow.backend.Backend):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             raise burrow.backend.NotFound()
+        detail = self._get_message_detail(filters, 'all')
         for message in queue.messages.iter(filters):
-            yield message.detail()
+            if detail is not None:
+                yield message.detail(detail)
 
     def update_messages(self, account, queue, attributes={}, filters={}):
         account, queue = self.accounts.get_queue(account, queue)
@@ -99,6 +101,7 @@ class Backend(burrow.backend.Backend):
             raise burrow.backend.NotFound()
         notify = False
         ttl, hide = self._get_attributes(attributes)
+        detail = self._get_message_detail(filters)
         for message in queue.messages.iter(filters):
             if ttl is not None:
                 message.ttl = ttl
@@ -106,7 +109,8 @@ class Backend(burrow.backend.Backend):
                 message.hide = hide
                 if hide == 0:
                     notify = True
-            yield message.detail()
+            if detail is not None:
+                yield message.detail(detail)
         if notify:
             self.notify(account.id, queue.id)
 
@@ -130,7 +134,7 @@ class Backend(burrow.backend.Backend):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             return None
-        message = queue.messages.get(message, True)
+        message = queue.messages.get(message)
         if message is None:
             return None
         queue.messages.delete(message.id)
@@ -142,7 +146,7 @@ class Backend(burrow.backend.Backend):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             return None
-        message = queue.messages.get(message, True)
+        message = queue.messages.get(message)
         if message is None:
             return None
         return message.detail()
@@ -153,7 +157,7 @@ class Backend(burrow.backend.Backend):
         if queue is None:
             return None
         ttl, hide = self._get_attributes(attributes)
-        message = queue.messages.get(message, True)
+        message = queue.messages.get(message)
         if message is None:
             return None
         if ttl is not None:
@@ -194,6 +198,15 @@ class Backend(burrow.backend.Backend):
         if detail == 'none':
             detail = None
         elif detail is not None and detail not in ['id', 'all']:
+            raise burrow.backend.BadDetail(detail)
+        return detail
+
+    def _get_message_detail(self, filters, default=None):
+        detail = filters.get('detail', default)
+        options = ['id', 'attributes', 'body', 'all']
+        if detail == 'none':
+            detail = None
+        elif detail is not None and detail not in options:
             raise burrow.backend.BadDetail(detail)
         return detail
 
@@ -327,15 +340,18 @@ class Message(Item):
         self.body = None
 
     def detail(self, detail=None):
-        #if detail == 'all':
-        #    return dict(id=self.id)
-        #return self.id
+        if detail == 'id':
+            return self.id
+        elif detail == 'body':
+            return self.body
         ttl = self.ttl
         if ttl > 0:
             ttl -= int(time.time())
         hide = self.hide
         if hide > 0:
             hide -= int(time.time())
+        if detail == 'attributes':
+            return dict(id=self.id, ttl=ttl, hide=hide)
         return dict(id=self.id, ttl=ttl, hide=hide, body=self.body)
 
 
@@ -351,11 +367,15 @@ class Messages(IndexedList):
             item = self.first
         limit = filters.get('limit', None)
         match_hidden = filters.get('match_hidden', False)
+        count = 0
         while item is not None:
             if match_hidden or item.hide == 0:
+                count += 1
                 yield item
                 if limit:
                     limit -= 1
                     if limit == 0:
                         break
             item = item.next
+        if count == 0:
+            raise burrow.backend.NotFound()
