@@ -66,6 +66,7 @@ class Backend(burrow.backend.Backend):
         current_account = None
         ids = []
         marker_found = False
+        count = 0
         for row in self.db.execute(query, values):
             if marker == row[1]:
                 marker_found = True
@@ -78,6 +79,7 @@ class Backend(burrow.backend.Backend):
                         break
                     limit -= 1
                 current_account = row[1]
+                count += 1
                 if detail == 'id':
                     yield row[1]
                 elif detail == 'all':
@@ -90,7 +92,10 @@ class Backend(burrow.backend.Backend):
             filters = dict(filters)
             filters.pop('marker')
             for account in self.delete_accounts(filters):
+                count += 1
                 yield account
+        if count == 0:
+            raise burrow.backend.NotFound()
         if len(ids) > 0:
             self._delete_queues(ids)
 
@@ -109,12 +114,14 @@ class Backend(burrow.backend.Backend):
             values += (limit,)
         detail = self._get_detail(filters, 'id')
         marker_found = False
+        count = 0
         for row in self.db.execute(query, values):
             if marker == row[0]:
                 marker_found = True
                 continue
             elif marker is not None and not marker_found:
                 break
+            count += 1
             if detail == 'id':
                 yield row[0]
             elif detail == 'all':
@@ -123,7 +130,10 @@ class Backend(burrow.backend.Backend):
             filters = dict(filters)
             filters.pop('marker')
             for account in self.get_accounts(filters):
+                count += 1
                 yield account
+        if count == 0:
+            raise burrow.backend.NotFound()
 
     def delete_queues(self, account, filters={}):
         query = 'SELECT rowid,queue FROM queues WHERE account=?'
@@ -132,12 +142,14 @@ class Backend(burrow.backend.Backend):
         detail = self._get_detail(filters, None)
         ids = []
         marker_found = False
+        count = 0
         for row in self.db.execute(query, values):
             if marker == row[1]:
                 marker_found = True
                 continue
             elif marker is not None and not marker_found:
                 break
+            count += 1
             if detail == 'id':
                 yield row[1]
             elif detail == 'all':
@@ -150,7 +162,10 @@ class Backend(burrow.backend.Backend):
             filters = dict(filters)
             filters.pop('marker')
             for queue in self.delete_queues(account, filters):
+                count += 1
                 yield queue
+        if count == 0:
+            raise burrow.backend.NotFound()
         if len(ids) > 0:
             self._delete_queues(ids)
 
@@ -160,12 +175,14 @@ class Backend(burrow.backend.Backend):
         query, values, marker = self._add_queue_filters(query, values, filters)
         detail = self._get_detail(filters, 'id')
         marker_found = False
+        count = 0
         for row in self.db.execute(query, values):
             if marker == row[0]:
                 marker_found = True
                 continue
             elif marker is not None and not marker_found:
                 break
+            count += 1
             if detail == 'id':
                 yield row[0]
             elif detail == 'all':
@@ -174,7 +191,10 @@ class Backend(burrow.backend.Backend):
             filters = dict(filters)
             filters.pop('marker')
             for queue in self.get_queues(account, filters):
+                count += 1
                 yield queue
+        if count == 0:
+            raise burrow.backend.NotFound()
 
     def _add_queue_filters(self, query, values, filters):
         limit = filters.get('limit', None)
@@ -224,7 +244,7 @@ class Backend(burrow.backend.Backend):
 
     def get_messages(self, account, queue, filters={}):
         result = self._get_messages(account, queue, filters)
-        rowid = result.next()
+        result.next()
         return result
 
     def update_messages(self, account, queue, attributes={}, filters={}):
@@ -410,7 +430,7 @@ class Backend(burrow.backend.Backend):
         rowid = self._get_queue(account, queue)
         yield rowid
         if rowid is None:
-            return
+            raise burrow.backend.NotFound()
         marker = None
         if 'marker' in filters and filters['marker'] is not None:
             query = "SELECT rowid FROM messages " \
@@ -426,12 +446,15 @@ class Backend(burrow.backend.Backend):
             query += " AND hide == 0"
         if 'limit' in filters and filters['limit'] is not None:
             query += " LIMIT %d" % filters['limit']
-        result = self.db.execute(query).fetchall()
-        for row in result:
+        count = 0
+        for row in self.db.execute(query):
             ttl = row[1]
             if ttl > 0:
                 ttl -= int(time.time())
             hide = row[2]
             if hide > 0:
                 hide -= int(time.time())
+            count += 1
             yield dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))
+        if count == 0:
+            raise burrow.backend.NotFound()
