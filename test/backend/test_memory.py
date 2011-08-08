@@ -30,11 +30,13 @@ class TestMemory(unittest.TestCase):
         self.assertRaises(burrow.backend.NotFound, list, accounts)
         queues = self.backend.get_queues('a')
         self.assertRaises(burrow.backend.NotFound, list, queues)
-        messages = self.backend.get_messages('a', 'q')
+        filters = dict(match_hidden=True)
+        messages = self.backend.get_messages('a', 'q', filters)
         self.assertRaises(burrow.backend.NotFound, list, messages)
 
     def tearDown(self):
-        messages = self.backend.get_messages('a', 'q')
+        filters = dict(match_hidden=True)
+        messages = self.backend.get_messages('a', 'q', filters)
         self.assertRaises(burrow.backend.NotFound, list, messages)
         queues = self.backend.get_queues('a')
         self.assertRaises(burrow.backend.NotFound, list, queues)
@@ -45,6 +47,8 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         self.assertEquals(['a'], list(self.backend.get_accounts()))
         self.assertEquals([], list(self.backend.delete_accounts()))
+        accounts = self.backend.delete_accounts()
+        self.assertRaises(burrow.backend.NotFound, list, accounts)
 
     def test_accounts_delete_detail_all(self):
         self.backend.create_message('a', 'q', 'm', 'test')
@@ -199,6 +203,8 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         self.assertEquals(['q'], list(self.backend.get_queues('a')))
         self.assertEquals([], list(self.backend.delete_queues('a')))
+        queues = self.backend.delete_queues('a')
+        self.assertRaises(burrow.backend.NotFound, list, queues)
 
     def test_queues_delete_detail_all(self):
         self.backend.create_message('a', 'q', 'm', 'test')
@@ -354,7 +360,14 @@ class TestMemory(unittest.TestCase):
         message = dict(id='m', ttl=0, hide=0, body='test')
         messages = list(self.backend.get_messages('a', 'q'))
         self.assertEquals([message], messages)
-        self.assertEquals([], list(self.backend.delete_messages('a', 'q')))
+        attributes = dict(ttl=100, hide=200)
+        messages = list(self.backend.update_messages('a', 'q', attributes))
+        self.assertEquals([], messages)
+        self.delete_messages()
+        messages = self.backend.delete_messages('a', 'q')
+        self.assertRaises(burrow.backend.NotFound, list, messages)
+        messages = self.backend.update_messages('a', 'q', attributes)
+        self.assertRaises(burrow.backend.NotFound, list, messages)
 
     def test_messages_delete_detail_all(self):
         self.backend.create_message('a', 'q', 'm', 'test')
@@ -363,11 +376,24 @@ class TestMemory(unittest.TestCase):
         messages = list(self.backend.delete_messages('a', 'q', filters))
         self.assertEquals([message], messages)
 
+    def test_messages_delete_detail_attributes(self):
+        self.backend.create_message('a', 'q', 'm', 'test')
+        message = dict(id='m', ttl=0, hide=0)
+        filters = dict(detail='attributes')
+        messages = list(self.backend.delete_messages('a', 'q', filters))
+        self.assertEquals([message], messages)
+
+    def test_messages_delete_detail_body(self):
+        self.backend.create_message('a', 'q', 'm', 'test')
+        filters = dict(detail='body')
+        messages = list(self.backend.delete_messages('a', 'q', filters))
+        self.assertEquals(['test'], messages)
+
     def test_messages_delete_detail_id(self):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='id')
-        queues = list(self.backend.delete_messages('a', 'q', filters))
-        self.assertEquals(['m'], queues)
+        messages = list(self.backend.delete_messages('a', 'q', filters))
+        self.assertEquals(['m'], messages)
 
     def test_messages_delete_detail_none(self):
         self.backend.create_message('a', 'q', 'm', 'test')
@@ -430,28 +456,43 @@ class TestMemory(unittest.TestCase):
         filters = dict(detail='all')
         messages = list(self.backend.get_messages('a', 'q', filters))
         self.assertEquals([message], messages)
-        self.assertEquals([], list(self.backend.delete_messages('a', 'q')))
+        self.delete_messages()
+
+    def test_messages_get_detail_attributes(self):
+        self.backend.create_message('a', 'q', 'm', 'test')
+        message = dict(id='m', ttl=0, hide=0)
+        filters = dict(detail='attributes')
+        messages = list(self.backend.get_messages('a', 'q', filters))
+        self.assertEquals([message], messages)
+        self.delete_messages()
+
+    def test_messages_get_detail_body(self):
+        self.backend.create_message('a', 'q', 'm', 'test')
+        filters = dict(detail='body')
+        messages = list(self.backend.get_messages('a', 'q', filters))
+        self.assertEquals(['test'], messages)
+        self.delete_messages()
 
     def test_messages_get_detail_id(self):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='id')
         messages = list(self.backend.get_messages('a', 'q', filters))
         self.assertEquals(['m'], messages)
-        self.assertEquals([], list(self.backend.delete_messages('a', 'q')))
+        self.delete_messages()
 
     def test_messages_get_detail_none(self):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='none')
         messages = list(self.backend.get_messages('a', 'q', filters))
         self.assertEquals([], messages)
-        self.assertEquals([], list(self.backend.delete_messages('a', 'q')))
+        self.delete_messages()
 
     def test_messages_get_detail_bad(self):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         messages = self.backend.get_messages('a', 'q', filters)
         self.assertRaises(burrow.backend.BadDetail, list, messages)
-        self.assertEquals([], list(self.backend.delete_messages('a', 'q')))
+        self.delete_messages()
 
     def test_messages_get_marker(self):
         self.backend.create_message('a', 'q', 'm1', 'test')
@@ -471,7 +512,7 @@ class TestMemory(unittest.TestCase):
         filters = dict(marker='unknown')
         messages2 = list(self.backend.get_messages('a', 'q', filters))
         self.assertEquals(messages, messages2)
-        self.assertEquals([], list(self.backend.delete_messages('a', 'q')))
+        self.delete_messages()
 
     def test_messages_get_limit(self):
         self.backend.create_message('a', 'q', 'm1', 'test')
@@ -491,7 +532,7 @@ class TestMemory(unittest.TestCase):
         filters = dict(limit=100)
         messages2 = list(self.backend.get_messages('a', 'q', filters))
         self.assertEquals(messages, messages2)
-        self.assertEquals([], list(self.backend.delete_messages('a', 'q')))
+        self.delete_messages()
 
     def test_messages_get_marker_limit(self):
         self.backend.create_message('a', 'q', 'm1', 'test')
@@ -505,4 +546,122 @@ class TestMemory(unittest.TestCase):
         filters = dict(marker=messages[0]['id'], limit=2)
         messages2 = list(self.backend.get_messages('a', 'q', filters))
         self.assertEquals(messages[1:3], messages2)
-        self.assertEquals([], list(self.backend.delete_messages('a', 'q')))
+        self.delete_messages()
+
+    def test_messages_update_detail_all(self):
+        self.backend.create_message('a', 'q', 'm', 'test')
+        message = dict(id='m', ttl=100, hide=200, body='test')
+        attributes = dict(ttl=100, hide=200)
+        filters = dict(detail='all')
+        messages = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals([message], list(messages))
+        self.delete_messages()
+
+    def test_messages_update_detail_attributes(self):
+        self.backend.create_message('a', 'q', 'm', 'test')
+        message = dict(id='m', ttl=100, hide=200)
+        attributes = dict(ttl=100, hide=200)
+        filters = dict(detail='attributes')
+        messages = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals([message], list(messages))
+        self.delete_messages()
+
+    def test_messages_update_detail_body(self):
+        self.backend.create_message('a', 'q', 'm', 'test')
+        attributes = dict(ttl=100, hide=200)
+        filters = dict(detail='body')
+        messages = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(['test'], list(messages))
+        self.delete_messages()
+
+    def test_messages_update_detail_id(self):
+        self.backend.create_message('a', 'q', 'm', 'test')
+        attributes = dict(ttl=100, hide=200)
+        filters = dict(detail='id')
+        messages = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(['m'], list(messages))
+        self.delete_messages()
+
+    def test_messages_update_detail_none(self):
+        self.backend.create_message('a', 'q', 'm', 'test')
+        attributes = dict(ttl=100, hide=200)
+        filters = dict(detail='none')
+        messages = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals([], list(messages))
+        self.delete_messages()
+
+    def test_messages_update_detail_bad(self):
+        self.backend.create_message('a', 'q', 'm', 'test')
+        attributes = dict(ttl=100, hide=200)
+        filters = dict(detail='bad')
+        messages = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertRaises(burrow.backend.BadDetail, list, messages)
+        self.delete_messages()
+
+    def test_messages_update_marker(self):
+        self.backend.create_message('a', 'q', 'm1', 'test')
+        self.backend.create_message('a', 'q', 'm2', 'test')
+        self.backend.create_message('a', 'q', 'm3', 'test')
+        attributes = dict(ttl=100, hide=200)
+        filters = dict(detail='all', match_hidden=True)
+        messages = self.backend.update_messages('a', 'q', attributes, filters)
+        messages = list(messages)
+        self.assertEquals(3, len(messages))
+        filters.update(marker=messages[0]['id'])
+        messages2 = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(messages[1:], list(messages2))
+        filters.update(marker=messages[1]['id'])
+        messages2 = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(messages[2:], list(messages2))
+        filters.update(marker=messages[2]['id'])
+        messages2 = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertRaises(burrow.backend.NotFound, list, messages2)
+        filters = dict(detail='all', marker='unknown', match_hidden=True)
+        messages2 = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(messages, list(messages2))
+        self.delete_messages()
+
+    def test_messages_update_limit(self):
+        self.backend.create_message('a', 'q', 'm1', 'test')
+        self.backend.create_message('a', 'q', 'm2', 'test')
+        self.backend.create_message('a', 'q', 'm3', 'test')
+        attributes = dict(ttl=100, hide=200)
+        filters = dict(detail='all', match_hidden=True)
+        messages = self.backend.update_messages('a', 'q', attributes, filters)
+        messages = list(messages)
+        self.assertEquals(3, len(messages))
+        filters.update(limit=1)
+        messages2 = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(messages[:1], list(messages2))
+        filters.update(limit=2)
+        messages2 = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(messages[:2], list(messages2))
+        filters.update(limit=3)
+        messages2 = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(messages, list(messages2))
+        filters.update(limit=100)
+        messages2 = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(messages, list(messages2))
+        self.delete_messages()
+
+    def test_messages_update_marker_limit(self):
+        self.backend.create_message('a', 'q', 'm1', 'test')
+        self.backend.create_message('a', 'q', 'm2', 'test')
+        self.backend.create_message('a', 'q', 'm3', 'test')
+        attributes = dict(ttl=100, hide=200)
+        filters = dict(detail='all', match_hidden=True)
+        messages = self.backend.update_messages('a', 'q', attributes, filters)
+        messages = list(messages)
+        self.assertEquals(3, len(messages))
+        filters.update(marker=messages[1]['id'], limit=1)
+        messages2 = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(messages[2:3], list(messages2))
+        filters.update(marker=messages[0]['id'], limit=2)
+        messages2 = self.backend.update_messages('a', 'q', attributes, filters)
+        self.assertEquals(messages[1:3], list(messages2))
+        self.delete_messages()
+
+    def delete_messages(self):
+        filters = dict(match_hidden=True)
+        messages = list(self.backend.delete_messages('a', 'q', filters))
+        self.assertEquals([], messages)

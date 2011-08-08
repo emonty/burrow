@@ -75,14 +75,11 @@ class Backend(burrow.backend.Backend):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
             raise burrow.backend.NotFound()
-        if len(filters) == 0:
-            queue.messages.reset()
-        else:
-            detail = self._get_message_detail(filters)
-            for message in queue.messages.iter(filters):
-                queue.messages.delete(message.id)
-                if detail is not None:
-                    yield message.detail(detail)
+        detail = self._get_message_detail(filters)
+        for message in queue.messages.iter(filters):
+            queue.messages.delete(message.id)
+            if detail is not None:
+                yield message.detail(detail)
         if queue.messages.count() == 0:
             self.accounts.delete_queue(account.id, queue.id)
 
@@ -247,8 +244,6 @@ class IndexedList(object):
         return len(self.index)
 
     def delete(self, id):
-        if id not in self.index:
-            return
         item = self.index.pop(id)
         if item.next is not None:
             item.next.prev = item.prev
