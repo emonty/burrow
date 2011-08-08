@@ -52,6 +52,9 @@ class Backend(burrow.backend.Backend):
 
     def delete_accounts(self, filters={}):
         if len(filters) == 0:
+            count = self.db.execute('SELECT COUNT(*) FROM queues').fetchall()
+            if count[0][0] == 0:
+                raise burrow.backend.NotFound()
             self.db.execute('DELETE FROM queues')
             self.db.execute('DELETE FROM messages')
             return
@@ -234,8 +237,6 @@ class Backend(burrow.backend.Backend):
             ids.append(message[0])
             if detail is not None:
                 yield self._message_detail(message, detail)
-        if len(ids) == 0:
-            return
         values = (rowid,) + tuple(ids)
         query = 'DELETE FROM messages WHERE queue=? AND name IN (%s)'
         self.db.execute(query % ','.join('?' * len(ids)), values)
@@ -272,8 +273,6 @@ class Backend(burrow.backend.Backend):
                 message[2] = hide
             if detail is not None:
                 yield self._message_detail(message, detail)
-        if len(ids) == 0:
-            return
         query = 'UPDATE messages SET'
         comma = ''
         values = tuple()
@@ -482,5 +481,5 @@ class Backend(burrow.backend.Backend):
         if hide > 0:
             hide -= int(time.time())
         if detail == 'attributes':
-            return dict(id=self.id, ttl=ttl, hide=hide)
+            return dict(id=row[0], ttl=ttl, hide=hide)
         return dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))
