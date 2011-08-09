@@ -130,10 +130,10 @@ class Backend(burrow.backend.Backend):
     def delete_message(self, account, queue, message, filters={}):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
-            return None
+            raise burrow.backend.NotFound()
         message = queue.messages.get(message)
         if message is None:
-            return None
+            raise burrow.backend.NotFound()
         queue.messages.delete(message.id)
         if queue.messages.count() == 0:
             self.accounts.delete_queue(account.id, queue.id)
@@ -142,21 +142,21 @@ class Backend(burrow.backend.Backend):
     def get_message(self, account, queue, message, filters={}):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
-            return None
+            raise burrow.backend.NotFound()
         message = queue.messages.get(message)
         if message is None:
-            return None
+            raise burrow.backend.NotFound()
         return message.detail()
 
     def update_message(self, account, queue, message, attributes={},
         filters={}):
         account, queue = self.accounts.get_queue(account, queue)
         if queue is None:
-            return None
+            raise burrow.backend.NotFound()
         ttl, hide = self._get_attributes(attributes)
         message = queue.messages.get(message)
         if message is None:
-            return None
+            raise burrow.backend.NotFound()
         if ttl is not None:
             message.ttl = ttl
         if hide is not None:

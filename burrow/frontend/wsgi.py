@@ -172,24 +172,27 @@ class Frontend(burrow.frontend.Frontend):
 
     @webob.dec.wsgify
     def _delete_message(self, req, account, queue, message):
-        message = self.backend.delete_message(account, queue, message)
-        if message is None:
+        try:
+            message = self.backend.delete_message(account, queue, message)
+        except burrow.backend.NotFound:
             return self._response(status=404)
         return self._return_message(req, account, queue, message, 'none')
 
     @webob.dec.wsgify
     def _get_message(self, req, account, queue, message):
-        message = self.backend.get_message(account, queue, message)
-        if message is None:
+        try:
+            message = self.backend.get_message(account, queue, message)
+        except burrow.backend.NotFound:
             return self._response(status=404)
         return self._return_message(req, account, queue, message, 'all')
 
     @webob.dec.wsgify
     def _post_message(self, req, account, queue, message):
         attributes = self._parse_attributes(req)
-        message = self.backend.update_message(account, queue, message,
-            attributes)
-        if message is None:
+        try:
+            message = self.backend.update_message(account, queue, message,
+                attributes)
+        except burrow.backend.NotFound:
             return self._response(status=404)
         return self._return_message(req, account, queue, message, 'id')
 
