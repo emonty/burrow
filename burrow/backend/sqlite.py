@@ -439,20 +439,20 @@ class Backend(burrow.backend.Backend):
         ttl = attributes.get('ttl', None)
         row = list(row)
         if ttl is not None:
-            row[2] = ttl
             if ttl > 0:
                 ttl += int(time.time())
             query += comma + ' ttl=?'
             values += (ttl,)
             comma = ','
+            row[2] = ttl
         hide = attributes.get('hide', None)
         if hide is not None:
-            row[3] = hide
             if hide > 0:
                 hide += int(time.time())
             query += comma + ' hide=?'
             values += (hide,)
             comma = ','
+            row[3] = hide
         if comma != '':
             query += ' WHERE rowid=?'
             values += (row[0],)
