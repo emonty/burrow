@@ -51,6 +51,12 @@ class TestMemory(unittest.TestCase):
         accounts = self.backend.delete_accounts()
         self.assertRaises(burrow.backend.NotFound, list, accounts)
 
+    def test_accounts_large(self):
+        for x in xrange(0, 1000):
+            self.backend.create_message(str(x), str(x), str(x), str(x))
+        filters = dict(marker='unknown')
+        self.assertEquals([], list(self.backend.delete_accounts(filters)))
+
     def test_accounts_delete_detail_all(self):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='all')
@@ -206,6 +212,12 @@ class TestMemory(unittest.TestCase):
         self.assertEquals([], list(self.backend.delete_queues('a')))
         queues = self.backend.delete_queues('a')
         self.assertRaises(burrow.backend.NotFound, list, queues)
+
+    def test_queues_large(self):
+        for x in xrange(0, 1000):
+            self.backend.create_message('a', str(x), str(x), str(x))
+        filters = dict(marker='unknown')
+        self.assertEquals([], list(self.backend.delete_queues('a', filters)))
 
     def test_queues_delete_detail_all(self):
         self.backend.create_message('a', 'q', 'm', 'test')
@@ -375,6 +387,14 @@ class TestMemory(unittest.TestCase):
         self.assertRaises(burrow.backend.NotFound, list, messages)
         messages = self.backend.update_messages('a', 'q', attributes)
         self.assertRaises(burrow.backend.NotFound, list, messages)
+
+    def test_messages_large(self):
+        for x in xrange(0, 1000):
+            self.backend.create_message('a', 'q', str(x), str(x))
+        attributes = dict(ttl=100, hide=200)
+        messages = self.backend.update_messages('a', 'q', attributes)
+        self.assertEquals([], list(messages))
+        self.delete_messages()
 
     def test_messages_delete_detail_all(self):
         self.backend.create_message('a', 'q', 'm', 'test')
@@ -842,6 +862,13 @@ class TestMemory(unittest.TestCase):
         time.sleep(1)
         self.backend.clean()
 
+    def test_message_ttl_large(self):
+        attributes = dict(ttl=1)
+        for x in xrange(0, 1000):
+            self.backend.create_message('a', 'q', str(x), str(x), attributes)
+        time.sleep(1)
+        self.backend.clean()
+
     def test_message_hide(self):
         attributes = dict(hide=1)
         self.backend.create_message('a', 'q', 'm', 'test', attributes)
@@ -849,6 +876,16 @@ class TestMemory(unittest.TestCase):
         self.backend.clean()
         message = self.backend.get_message('a', 'q', 'm')
         self.assertEquals(dict(id='m', ttl=0, hide=0, body='test'), message)
+        self.delete_messages()
+
+    def test_message_hide_large(self):
+        attributes = dict(hide=1)
+        for x in xrange(0, 1000):
+            self.backend.create_message('a', 'q', str(x), str(x), attributes)
+        time.sleep(1)
+        self.backend.clean()
+        message = self.backend.get_message('a', 'q', '0')
+        self.assertEquals(dict(id='0', ttl=0, hide=0, body='0'), message)
         self.delete_messages()
 
     def delete_messages(self):
