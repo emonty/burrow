@@ -23,6 +23,10 @@ import burrow.backend
 # Default configuration values for this module.
 DEFAULT_DATABASE = ':memory:'
 
+# Maximum number of parameters to pass to execute. Testing shows a max of
+# 999, so leave a few extra for parameters not added by a list of IDs.
+MAXIMUM_PARAMETERS = 990
+
 
 class Backend(burrow.backend.Backend):
 
@@ -36,189 +40,68 @@ class Backend(burrow.backend.Backend):
         self.db = sqlite3.connect(database)
         self.db.isolation_level = None
         queries = [
-            'CREATE TABLE IF NOT EXISTS queues ('
+            'CREATE TABLE IF NOT EXISTS accounts ('
                 'account VARCHAR(255) NOT NULL,'
+                'PRIMARY KEY (account))',
+            'CREATE TABLE IF NOT EXISTS queues ('
+                'account INT UNSIGNED NOT NULL,'
                 'queue VARCHAR(255) NOT NULL,'
                 'PRIMARY KEY (account, queue))',
             'CREATE TABLE IF NOT EXISTS messages ('
                 'queue INT UNSIGNED NOT NULL,'
-                'name VARCHAR(255) NOT NULL,'
+                'message VARCHAR(255) NOT NULL,'
                 'ttl INT UNSIGNED NOT NULL,'
                 'hide INT UNSIGNED NOT NULL,'
                 'body BLOB NOT NULL,'
-                'PRIMARY KEY (queue, name))']
+                'PRIMARY KEY (queue, message))']
         for query in queries:
             self.db.execute(query)
 
     def delete_accounts(self, filters={}):
         if len(filters) == 0:
-            count = self.db.execute('SELECT COUNT(*) FROM queues').fetchall()
-            if count[0][0] == 0:
+            query = 'SELECT rowid FROM accounts LIMIT 1'
+            if len(self.db.execute(query).fetchall()) == 0:
                 raise burrow.backend.NotFound()
+            self.db.execute('DELETE FROM accounts')
             self.db.execute('DELETE FROM queues')
             self.db.execute('DELETE FROM messages')
             return
-        query = 'SELECT rowid,account FROM queues'
-        values = tuple()
-        marker = filters.get('marker', None)
-        if marker is not None:
-            query += ' WHERE account >= ?'
-            values += (marker,)
-        limit = filters.get('limit', None)
-        detail = self._get_detail(filters, 'id')
-        current_account = None
-        ids = []
-        marker_found = False
         count = 0
-        for row in self.db.execute(query, values):
-            if marker == row[1]:
-                marker_found = True
-                continue
-            elif marker is not None and not marker_found:
-                break
-            if current_account != row[1]:
-                if limit is not None:
-                    if limit == 0:
-                        break
-                    limit -= 1
-                current_account = row[1]
-                count += 1
-                if detail == 'id':
-                    yield row[1]
-                elif detail == 'all':
-                    yield dict(id=row[1])
+        detail = self._get_detail(filters)
+        ids = []
+        query = 'SELECT rowid,account FROM accounts'
+        for row in self._get_accounts(query, filters):
+            count += 1
+            if detail is not None:
+                yield self._detail(row[1:], detail)
             ids.append(row[0])
-            if len(ids) == 999:
-                self._delete_queues(ids)
+            if len(ids) == MAXIMUM_PARAMETERS:
+                self._delete_accounts(ids)
                 ids = []
-        if marker is not None and not marker_found:
-            filters = dict(filters)
-            filters.pop('marker')
-            for account in self.delete_accounts(filters):
-                count += 1
-                yield account
         if count == 0:
             raise burrow.backend.NotFound()
         if len(ids) > 0:
-            self._delete_queues(ids)
+            self._delete_accounts(ids)
 
-    def get_accounts(self, filters={}):
-        query = 'SELECT DISTINCT account FROM queues'
-        values = tuple()
-        limit = filters.get('limit', None)
-        marker = filters.get('marker', None)
-        if marker is not None:
-            query += ' WHERE account >= ?'
-            values += (marker,)
-            if limit is not None:
-                limit += 1
-        if limit is not None:
-            query += ' LIMIT ?'
-            values += (limit,)
-        detail = self._get_detail(filters, 'id')
-        marker_found = False
-        count = 0
-        for row in self.db.execute(query, values):
-            if marker == row[0]:
-                marker_found = True
-                continue
-            elif marker is not None and not marker_found:
-                break
-            count += 1
-            if detail == 'id':
-                yield row[0]
-            elif detail == 'all':
-                yield dict(id=row[0])
-        if marker is not None and not marker_found:
-            filters = dict(filters)
-            filters.pop('marker')
-            for account in self.get_accounts(filters):
-                count += 1
-                yield account
-        if count == 0:
-            raise burrow.backend.NotFound()
-
-    def delete_queues(self, account, filters={}):
-        query = 'SELECT rowid,queue FROM queues WHERE account=?'
-        values = (account,)
-        query, values, marker = self._add_queue_filters(query, values, filters)
-        detail = self._get_detail(filters, None)
-        ids = []
-        marker_found = False
-        count = 0
-        for row in self.db.execute(query, values):
-            if marker == row[1]:
-                marker_found = True
-                continue
-            elif marker is not None and not marker_found:
-                break
-            count += 1
-            if detail == 'id':
-                yield row[1]
-            elif detail == 'all':
-                yield dict(id=row[1])
-            ids.append(row[0])
-            if len(ids) == 999:
-                self._delete_queues(ids)
-                ids = []
-        if marker is not None and not marker_found:
-            filters = dict(filters)
-            filters.pop('marker')
-            for queue in self.delete_queues(account, filters):
-                count += 1
-                yield queue
-        if count == 0:
-            raise burrow.backend.NotFound()
-        if len(ids) > 0:
-            self._delete_queues(ids)
-
-    def get_queues(self, account, filters={}):
-        query = 'SELECT queue FROM queues WHERE account=?'
-        values = (account,)
-        query, values, marker = self._add_queue_filters(query, values, filters)
-        detail = self._get_detail(filters, 'id')
-        marker_found = False
-        count = 0
-        for row in self.db.execute(query, values):
-            if marker == row[0]:
-                marker_found = True
-                continue
-            elif marker is not None and not marker_found:
-                break
-            count += 1
-            if detail == 'id':
-                yield row[0]
-            elif detail == 'all':
-                yield dict(id=row[0])
-        if marker is not None and not marker_found:
-            filters = dict(filters)
-            filters.pop('marker')
-            for queue in self.get_queues(account, filters):
-                count += 1
-                yield queue
-        if count == 0:
-            raise burrow.backend.NotFound()
-
-    def _add_queue_filters(self, query, values, filters):
-        limit = filters.get('limit', None)
-        marker = filters.get('marker', None)
-        if marker is not None:
-            query += ' AND queue >= ?'
-            values += (marker,)
-            if limit is not None:
-                limit += 1
-        if limit is not None:
-            query += ' LIMIT ?'
-            values += (limit,)
-        return query, values, marker
-
-    def _delete_queues(self, ids):
-        query = 'DELETE FROM messages WHERE queue IN (?' + \
-            (',?' * (len(ids) - 1)) + ')'
-        self.db.execute(query, tuple(ids))
-        query = 'DELETE FROM queues WHERE rowid IN (?' + \
-            (',?' * (len(ids) - 1)) + ')'
-        self.db.execute(query, tuple(ids))
+    def _delete_accounts(self, ids):
+        ids = tuple(ids)
+        query_values = '(?' + (',?' * (len(ids) - 1)) + ')'
+        queue_ids = []
+        queue_query = 'DELETE FROM messages WHERE queue IN '
+        queue_query_values = '(?' + (',?' * (MAXIMUM_PARAMETERS - 1)) + ')'
+        query = 'SELECT rowid FROM queues WHERE account IN '
+        for row in self.db.execute(query + query_values, ids):
+            queue_ids.append(row[0])
+            if len(queue_ids) == MAXIMUM_PARAMETERS:
+                self.db.execute(queue_query + queue_query_values, queue_ids)
+                queue_ids = []
+        if len(queue_ids) > 0:
+            queue_query_values = '(?' + (',?' * (len(queue_ids) - 1)) + ')'
+            self.db.execute(queue_query + queue_query_values, queue_ids)
+        query = 'DELETE FROM queues WHERE account IN '
+        self.db.execute(query + query_values, ids)
+        query = 'DELETE FROM accounts WHERE rowid IN '
+        self.db.execute(query + query_values, ids)
 
     def _get_detail(self, filters, default=None):
         detail = filters.get('detail', default)
@@ -228,82 +111,276 @@ class Backend(burrow.backend.Backend):
             raise burrow.backend.BadDetail(detail)
         return detail
 
-    def delete_messages(self, account, queue, filters={}):
-        result = self._get_messages(account, queue, filters)
-        rowid = result.next()
-        ids = []
-        detail = self._get_message_detail(filters)
-        for message in result:
-            ids.append(message[0])
+    def _detail(self, row, detail):
+        if detail == 'id':
+            return row[0]
+        return dict(id=row[0])
+
+    def get_accounts(self, filters={}):
+        count = 0
+        detail = self._get_detail(filters, 'id')
+        query = 'SELECT account FROM accounts'
+        for row in self._get_accounts(query, filters):
+            count += 1
             if detail is not None:
-                yield self._message_detail(message, detail)
-        values = (rowid,) + tuple(ids)
-        query = 'DELETE FROM messages WHERE queue=? AND name IN (%s)'
-        self.db.execute(query % ','.join('?' * len(ids)), values)
+                yield self._detail(row, detail)
+        if count == 0:
+            raise burrow.backend.NotFound()
+
+    def _get_accounts(self, query, filters):
+        values = tuple()
+        marker = filters.get('marker', None)
+        if marker is not None:
+            try:
+                marker = self._get_account(marker)
+                query += ' WHERE rowid > ?'
+                values += (marker,)
+            except burrow.backend.NotFound:
+                marker = None
+        limit = filters.get('limit', None)
+        if limit is not None:
+            query += ' LIMIT ?'
+            values += (limit,)
+        return self.db.execute(query, values)
+
+    def _get_account(self, account):
+        query = 'SELECT rowid FROM accounts WHERE account=?'
+        account = self.db.execute(query, (account,)).fetchall()
+        if len(account) == 0:
+            raise burrow.backend.NotFound()
+        return account[0][0]
+
+    def delete_queues(self, account, filters={}):
+        account = self._get_account(account)
+        count = 0
+        detail = self._get_detail(filters)
+        ids = []
+        query = 'SELECT rowid,queue FROM queues'
+        for row in self._get_queues(query, account, filters):
+            count += 1
+            if detail is not None:
+                yield self._detail(row[1:], detail)
+            ids.append(row[0])
+            if len(ids) == MAXIMUM_PARAMETERS:
+                self._delete_queues(ids)
+                ids = []
+        if count == 0:
+            raise burrow.backend.NotFound()
+        if len(ids) > 0:
+            self._delete_queues(ids)
+        query = 'SELECT rowid FROM queues WHERE account=? LIMIT 1'
+        if len(self.db.execute(query, (account,)).fetchall()) == 0:
+            self.db.execute('DELETE FROM accounts WHERE rowid=?', (account,))
+
+    def _delete_queues(self, ids):
+        ids = tuple(ids)
+        query_values = '(?' + (',?' * (len(ids) - 1)) + ')'
+        query = 'DELETE FROM messages WHERE queue IN '
+        self.db.execute(query + query_values, ids)
+        query = 'DELETE FROM queues WHERE rowid IN '
+        self.db.execute(query + query_values, ids)
+
+    def get_queues(self, account, filters={}):
+        account = self._get_account(account)
+        count = 0
+        detail = self._get_detail(filters, 'id')
+        query = 'SELECT queue FROM queues'
+        for row in self._get_queues(query, account, filters):
+            count += 1
+            if detail is not None:
+                yield self._detail(row, detail)
+        if count == 0:
+            raise burrow.backend.NotFound()
+
+    def _get_queues(self, query, account, filters):
+        query += ' WHERE account=?'
+        values = (account,)
+        marker = filters.get('marker', None)
+        if marker is not None:
+            try:
+                marker = self._get_queue(account, marker)
+                query += ' AND rowid > ?'
+                values += (marker,)
+            except burrow.backend.NotFound:
+                marker = None
+        limit = filters.get('limit', None)
+        if limit is not None:
+            query += ' LIMIT ?'
+            values += (limit,)
+        return self.db.execute(query, values)
+
+    def _get_queue(self, account, queue):
+        query = 'SELECT rowid FROM queues WHERE account=? AND queue=?'
+        queue = self.db.execute(query, (account, queue)).fetchall()
+        if len(queue) == 0:
+            raise burrow.backend.NotFound()
+        return queue[0][0]
+
+    def delete_messages(self, account, queue, filters={}):
+        account = self._get_account(account)
+        queue = self._get_queue(account, queue)
+        count = 0
+        detail = self._get_message_detail(filters)
+        ids = []
+        query = 'SELECT rowid,message,ttl,hide,body FROM messages'
+        for row in self._get_messages(query, queue, filters):
+            count += 1
+            if detail is not None:
+                yield self._message_detail(row[1:], detail)
+            ids.append(row[0])
+            if len(ids) == MAXIMUM_PARAMETERS:
+                self._delete_messages(ids)
+                ids = []
+        if count == 0:
+            raise burrow.backend.NotFound()
+        if len(ids) > 0:
+            self._delete_messages(ids)
         query = 'SELECT rowid FROM messages WHERE queue=? LIMIT 1'
-        if len(self.db.execute(query, (rowid,)).fetchall()) == 0:
-            query = 'DELETE FROM queues WHERE rowid=?'
-            self.db.execute(query, (rowid,))
+        if len(self.db.execute(query, (queue,)).fetchall()) == 0:
+            self.db.execute('DELETE FROM queues WHERE rowid=?', (queue,))
+        query = 'SELECT rowid FROM queues WHERE account=? LIMIT 1'
+        if len(self.db.execute(query, (account,)).fetchall()) == 0:
+            self.db.execute('DELETE FROM accounts WHERE rowid=?', (account,))
+
+    def _delete_messages(self, ids):
+        ids = tuple(ids)
+        query_values = '(?' + (',?' * (len(ids) - 1)) + ')'
+        query = 'DELETE FROM messages WHERE rowid IN '
+        self.db.execute(query + query_values, ids)
+
+    def _get_message_detail(self, filters, default=None):
+        detail = filters.get('detail', default)
+        options = ['id', 'attributes', 'body', 'all']
+        if detail == 'none':
+            detail = None
+        elif detail is not None and detail not in options:
+            raise burrow.backend.BadDetail(detail)
+        return detail
+
+    def _message_detail(self, row, detail):
+        if detail == 'id':
+            return row[0]
+        elif detail == 'body':
+            return str(row[3])
+        ttl = row[1]
+        if ttl > 0:
+            ttl -= int(time.time())
+        hide = row[2]
+        if hide > 0:
+            hide -= int(time.time())
+        if detail == 'attributes':
+            return dict(id=row[0], ttl=ttl, hide=hide)
+        return dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))
 
     def get_messages(self, account, queue, filters={}):
-        result = self._get_messages(account, queue, filters)
-        result.next()
+        account = self._get_account(account)
+        queue = self._get_queue(account, queue)
+        count = 0
         detail = self._get_message_detail(filters, 'all')
-        for message in result:
+        query = 'SELECT message,ttl,hide,body FROM messages'
+        for row in self._get_messages(query, queue, filters):
+            count += 1
             if detail is not None:
-                yield self._message_detail(message, detail)
+                yield self._message_detail(row, detail)
+        if count == 0:
+            raise burrow.backend.NotFound()
+
+    def _get_messages(self, query, queue, filters):
+        query += ' WHERE queue=?'
+        values = (queue,)
+        marker = filters.get('marker', None)
+        if marker is not None:
+            try:
+                marker = self._get_message(queue, marker)
+                query += ' AND rowid > ?'
+                values += (marker,)
+            except burrow.backend.NotFound:
+                marker = None
+        match_hidden = filters.get('match_hidden', False)
+        if match_hidden is False:
+            query += ' AND hide=0'
+        limit = filters.get('limit', None)
+        if limit is not None:
+            query += ' LIMIT ?'
+            values += (limit,)
+        return self.db.execute(query, values)
+
+    def _get_message(self, queue, message):
+        query = 'SELECT rowid FROM messages WHERE queue=? AND message=?'
+        queue = self.db.execute(query, (queue, message)).fetchall()
+        if len(queue) == 0:
+            raise burrow.backend.NotFound()
+        return queue[0][0]
 
     def update_messages(self, account, queue, attributes={}, filters={}):
-        result = self._get_messages(account, queue, filters)
-        rowid = result.next()
+        account_name, queue_name = account, queue
+        account = self._get_account(account)
+        queue = self._get_queue(account, queue)
+        count = 0
+        detail = self._get_message_detail(filters)
         ids = []
+        notify = False
         ttl = attributes.get('ttl', None)
         if ttl is not None and ttl > 0:
             ttl += int(time.time())
         hide = attributes.get('hide', None)
         if hide is not None and hide > 0:
             hide += int(time.time())
-        detail = self._get_message_detail(filters)
-        for message in result:
-            message = list(message)
-            ids.append(message[0])
-            if ttl is not None:
-                message[1] = ttl
-            if hide is not None:
-                message[2] = hide
+        query = 'SELECT rowid,message,ttl,hide,body FROM messages'
+        for row in self._get_messages(query, queue, filters):
+            count += 1
             if detail is not None:
-                yield self._message_detail(message, detail)
-        query = 'UPDATE messages SET'
+                row = list(row)
+                if ttl is not None:
+                    row[2] = ttl
+                if hide is not None:
+                    row[3] = hide
+                yield self._message_detail(row[1:], detail)
+            ids.append(row[0])
+            if len(ids) == MAXIMUM_PARAMETERS:
+                if self._update_messages(ttl, hide, ids):
+                    notify = True
+                ids = []
+        if count == 0:
+            raise burrow.backend.NotFound()
+        if len(ids) > 0:
+            if self._update_messages(ttl, hide, ids):
+                notify = True
+        if notify:
+            self.notify(account_name, queue_name)
+
+    def _update_messages(self, ttl, hide, ids):
+        query = 'UPDATE messages SET '
+        query_values = ' WHERE rowid IN (?' + (',?' * (len(ids) - 1)) + ')'
         comma = ''
-        values = tuple()
         if ttl is not None:
-            query += '%s ttl=?' % comma
-            values += (ttl,)
+            query += comma + 'ttl=?'
+            ids.insert(0, ttl)
             comma = ','
         if hide is not None:
-            query += '%s hide=?' % comma
-            values += (hide,)
+            query += comma + 'hide=?'
+            ids.insert(1, hide)
             comma = ','
         if comma == '':
-            return
-        values += (rowid,)
-        values += tuple(ids)
-        query += ' WHERE queue=? AND name IN (%s)'
-        self.db.execute(query % ','.join('?' * len(ids)), values)
-        self.notify(account, queue)
+            return False
+        self.db.execute(query + query_values, tuple(ids))
+        return True
 
     def create_message(self, account, queue, message, body, attributes={}):
-        query = "SELECT rowid FROM queues " \
-            "WHERE account='%s' AND queue='%s'" % (account, queue)
-        result = self.db.execute(query).fetchall()
+        try:
+            account = self._get_account(account)
+        except burrow.backend.NotFound:
+            query = 'INSERT INTO accounts VALUES (?)'
+            account = self.db.execute(query, (account,)).lastrowid
+        query = 'SELECT rowid FROM queues WHERE account=? AND queue=?'
+        result = self.db.execute(query, (account, queue)).fetchall()
         if len(result) == 0:
-            query = "INSERT INTO queues VALUES ('%s', '%s')" % (account, queue)
-            rowid = self.db.execute(query).lastrowid
+            query = 'INSERT INTO queues VALUES (?, ?)'
+            rowid = self.db.execute(query, (account, queue)).lastrowid
         else:
             rowid = result[0][0]
-        query = "SELECT rowid FROM messages WHERE queue=%d AND name='%s'" % \
-            (rowid, message)
-        result = self.db.execute(query).fetchall()
+        query = 'SELECT rowid FROM messages WHERE queue=? AND message=?'
+        result = self.db.execute(query, (rowid, message)).fetchall()
         ttl = attributes.get('ttl', 0)
         if ttl > 0:
             ttl += int(time.time())
@@ -322,13 +399,11 @@ class Backend(burrow.backend.Backend):
         return False
 
     def delete_message(self, account, queue, message):
-        rowid = self._get_queue(account, queue)
-        if rowid is None:
-            return None
+        rowid = self._get_queue(self._get_account(account), queue)
         message = self.get_message(account, queue, message)
         if message is None:
             return None
-        query = "DELETE FROM messages WHERE queue=%d AND name='%s'" % \
+        query = "DELETE FROM messages WHERE queue=%d AND message='%s'" % \
             (rowid, message['id'])
         self.db.execute(query)
         query = "SELECT rowid FROM messages WHERE queue=%d LIMIT 1" % rowid
@@ -338,11 +413,9 @@ class Backend(burrow.backend.Backend):
         return message
 
     def get_message(self, account, queue, message):
-        rowid = self._get_queue(account, queue)
-        if rowid is None:
-            return None
-        query = "SELECT name,ttl,hide,body FROM messages " \
-            "WHERE queue=%d AND name='%s'" % (rowid, message)
+        rowid = self._get_queue(self._get_account(account), queue)
+        query = "SELECT message,ttl,hide,body FROM messages " \
+            "WHERE queue=%d AND message='%s'" % (rowid, message)
         result = self.db.execute(query).fetchall()
         if len(result) == 0:
             return None
@@ -356,9 +429,7 @@ class Backend(burrow.backend.Backend):
         return dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))
 
     def update_message(self, account, queue, message, attributes):
-        rowid = self._get_queue(account, queue)
-        if rowid is None:
-            return None
+        rowid = self._get_queue(self._get_account(account), queue)
         message = self.get_message(account, queue, message)
         if message is None:
             return None
@@ -380,7 +451,7 @@ class Backend(burrow.backend.Backend):
             comma = ','
         if comma == '':
             return message
-        query += " WHERE queue=%d AND name='%s'" % (rowid, message['id'])
+        query += " WHERE queue=%d AND message='%s'" % (rowid, message['id'])
         self.db.execute(query)
         if hide == 0:
             self.notify(account, queue)
@@ -423,63 +494,3 @@ class Backend(burrow.backend.Backend):
                     queue
                 result = self.db.execute(query).fetchall()[0]
                 self.notify(result[0], result[1])
-
-    def _get_queue(self, account, queue):
-        query = "SELECT rowid FROM queues " \
-            "WHERE account='%s' AND queue='%s'" % \
-            (account, queue)
-        result = self.db.execute(query).fetchall()
-        if len(result) == 0:
-            return None
-        return result[0][0]
-
-    def _get_messages(self, account, queue, filters):
-        rowid = self._get_queue(account, queue)
-        yield rowid
-        if rowid is None:
-            raise burrow.backend.NotFound()
-        marker = None
-        if 'marker' in filters and filters['marker'] is not None:
-            query = "SELECT rowid FROM messages " \
-                "WHERE queue=%d AND name='%s'" % (rowid, filters['marker'])
-            result = self.db.execute(query).fetchall()
-            if len(result) > 0:
-                marker = result[0][0]
-        query = "SELECT name,ttl,hide,body FROM messages WHERE queue=%d" % \
-            rowid
-        if marker is not None:
-            query += " AND rowid > %d" % marker
-        if 'match_hidden' not in filters or filters['match_hidden'] is False:
-            query += " AND hide == 0"
-        if 'limit' in filters and filters['limit'] is not None:
-            query += " LIMIT %d" % filters['limit']
-        count = 0
-        for row in self.db.execute(query):
-            yield row
-            count += 1
-        if count == 0:
-            raise burrow.backend.NotFound()
-
-    def _get_message_detail(self, filters, default=None):
-        detail = filters.get('detail', default)
-        options = ['id', 'attributes', 'body', 'all']
-        if detail == 'none':
-            detail = None
-        elif detail is not None and detail not in options:
-            raise burrow.backend.BadDetail(detail)
-        return detail
-
-    def _message_detail(self, row, detail):
-        if detail == 'id':
-            return row[0]
-        elif detail == 'body':
-            return str(row[3])
-        ttl = row[1]
-        if ttl > 0:
-            ttl -= int(time.time())
-        hide = row[2]
-        if hide > 0:
-            hide -= int(time.time())
-        if detail == 'attributes':
-            return dict(id=row[0], ttl=ttl, hide=hide)
-        return dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))
