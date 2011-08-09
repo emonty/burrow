@@ -49,7 +49,7 @@ class Backend(burrow.common.Module):
     def get_messages(self, account, queue, filters={}):
         return []
 
-    def update_messages(self, account, queue, attributes={}, filters={}):
+    def update_messages(self, account, queue, attributes, filters={}):
         return []
 
     def create_message(self, account, queue, message, body, attributes={}):
@@ -61,8 +61,7 @@ class Backend(burrow.common.Module):
     def get_message(self, account, queue, message, filters={}):
         return None
 
-    def update_message(self, account, queue, message, attributes={},
-        filters={}):
+    def update_message(self, account, queue, message, attributes, filters={}):
         return None
 
     def notify(self, account, queue):

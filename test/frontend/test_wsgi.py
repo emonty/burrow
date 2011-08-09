@@ -64,8 +64,7 @@ class TestWSGIMemory(unittest.TestCase):
     def test_message_post(self):
         self._put_url('/a/q/1', body='b')
         for x in range(0, 3):
-            result = self._post_url('/a/q/1?ttl=%d&hide=%d' % (x, x))
-            self.assertEquals(result, {'id': '1'})
+            self._post_url('/a/q/1?ttl=%d&hide=%d' % (x, x), status=204)
             result = self._get_url('/a/q?match_hidden=true')
             message = self.message('1', x, x, body='b')
             self.assertMessages(result, [message])
@@ -186,7 +185,6 @@ class TestWSGIMemory(unittest.TestCase):
     def test_message_ttl(self):
         self._put_url('/a/q/1?ttl=1')
         result = self._get_url('/a/q/1')
-        message = self.message('1', 1)
         self.assertMessages([result], [self.message('1', 1)])
         time.sleep(1)
         self.backend.clean()
@@ -194,7 +192,7 @@ class TestWSGIMemory(unittest.TestCase):
         self._put_url('/a/q/1')
         result = self._get_url('/a/q/1')
         self.assertMessages([result], [self.message('1')])
-        self._post_url('/a/q/1?ttl=1')
+        self._post_url('/a/q/1?ttl=1', status=204)
         result = self._get_url('/a/q/1')
         self.assertMessages([result], [self.message('1', 1)])
         time.sleep(1)
@@ -209,7 +207,7 @@ class TestWSGIMemory(unittest.TestCase):
         self.backend.clean()
         result = self._get_url('/a/q/1')
         self.assertMessages([result], [self.message('1')])
-        self._post_url('/a/q/1?hide=1')
+        self._post_url('/a/q/1?hide=1', status=204)
         result = self._get_url('/a/q/1')
         self.assertMessages([result], [self.message('1', hide=1)])
         time.sleep(1)
@@ -253,7 +251,7 @@ class TestWSGIMemory(unittest.TestCase):
         self.success = False
         self._put_url('/a/q/1?hide=10')
         thread = eventlet.spawn(self._message_wait)
-        eventlet.spawn_after(0.2, self._post_url, '/a/q/1?hide=0')
+        eventlet.spawn_after(0.2, self._post_url, '/a/q/1?hide=0', status=204)
         thread.wait()
         self.assertTrue(self.success)
         self._delete_url('/a/q/1')
