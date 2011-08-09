@@ -22,6 +22,7 @@ import burrow.backend
 
 # Default configuration values for this module.
 DEFAULT_DATABASE = ':memory:'
+DEFAULT_SYNCHRONOUS = 'FULL'
 
 # Maximum number of parameters to pass to execute. Testing shows a max of
 # 999, so leave a few extra for parameters not added by a list of IDs.
@@ -38,6 +39,8 @@ class Backend(burrow.backend.Backend):
             self.config.set('database', url.netloc)
         database = self.config.get('database', DEFAULT_DATABASE)
         self.db = sqlite3.connect(database)
+        synchronous = self.config.get('synchronous', DEFAULT_SYNCHRONOUS)
+        self.db.execute('PRAGMA synchronous=' + synchronous)
         self.db.isolation_level = None
         queries = [
             'CREATE TABLE IF NOT EXISTS accounts ('

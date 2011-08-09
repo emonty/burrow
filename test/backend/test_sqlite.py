@@ -32,16 +32,16 @@ class TestSQLiteFile(test.backend.test_memory.TestMemory):
     '''Unittests for the file-based SQLite backend.'''
 
     def setUp(self):
-        config = ConfigParser.ConfigParser()
-        config.add_section('test')
-        config.set('test', 'url', 'sqlite://TestSQLiteFile.db')
-        config = (config, 'test')
         try:
             os.unlink('TestSQLiteFile.db')
         except OSError:
             pass
+        config = ConfigParser.ConfigParser()
+        config.add_section('test')
+        config.set('test', 'url', 'sqlite://TestSQLiteFile.db')
+        config.set('test', 'synchronous', 'OFF')
+        config = (config, 'test')
         self.backend = burrow.backend.sqlite.Backend(config)
-        self.backend.db.execute('PRAGMA synchronous=OFF')
         self.check_empty()
 
     def tearDown(self):
