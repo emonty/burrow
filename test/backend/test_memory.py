@@ -22,27 +22,23 @@ import burrow.backend.memory
 
 class TestMemory(unittest.TestCase):
     '''Unittests for the memory backend.'''
-    backend_class = burrow.backend.memory.Backend
 
     def setUp(self):
         config = (ConfigParser.ConfigParser(), 'test')
-        self.backend = self.backend_class(config)
-        accounts = self.backend.get_accounts()
-        self.assertRaises(burrow.backend.NotFound, list, accounts)
-        queues = self.backend.get_queues('a')
-        self.assertRaises(burrow.backend.NotFound, list, queues)
-        filters = dict(match_hidden=True)
-        messages = self.backend.get_messages('a', 'q', filters)
-        self.assertRaises(burrow.backend.NotFound, list, messages)
+        self.backend = burrow.backend.memory.Backend(config)
+        self.check_empty()
 
     def tearDown(self):
+        self.check_empty()
+
+    def check_empty(self):
+        accounts = self.backend.get_accounts()
+        self.assertRaises(burrow.backend.NotFound, list, accounts)
+        queues = self.backend.get_queues('a')
+        self.assertRaises(burrow.backend.NotFound, list, queues)
         filters = dict(match_hidden=True)
         messages = self.backend.get_messages('a', 'q', filters)
         self.assertRaises(burrow.backend.NotFound, list, messages)
-        queues = self.backend.get_queues('a')
-        self.assertRaises(burrow.backend.NotFound, list, queues)
-        accounts = self.backend.get_accounts()
-        self.assertRaises(burrow.backend.NotFound, list, accounts)
 
     def test_accounts(self):
         self.backend.create_message('a', 'q', 'm', 'test')
