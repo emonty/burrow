@@ -14,6 +14,8 @@
 
 '''Backends for burrow.'''
 
+import time
+
 import eventlet
 
 import burrow.common
@@ -95,6 +97,32 @@ class Backend(burrow.common.Module):
         while True:
             self.clean()
             eventlet.sleep(1)
+
+    def _get_attributes(self, attributes, ttl=None, hide=None):
+        ttl = attributes.get('ttl', ttl)
+        if ttl is not None and ttl > 0:
+            ttl += int(time.time())
+        hide = attributes.get('hide', hide)
+        if hide is not None and hide > 0:
+            hide += int(time.time())
+        return ttl, hide
+
+    def _get_detail(self, filters, default=None):
+        detail = filters.get('detail', default)
+        if detail == 'none':
+            detail = None
+        elif detail is not None and detail not in ['id', 'all']:
+            raise burrow.backend.BadDetail(detail)
+        return detail
+
+    def _get_message_detail(self, filters, default=None):
+        detail = filters.get('detail', default)
+        options = ['id', 'attributes', 'body', 'all']
+        if detail == 'none':
+            detail = None
+        elif detail is not None and detail not in options:
+            raise burrow.backend.BadDetail(detail)
+        return detail
 
 
 class NotFound(Exception):

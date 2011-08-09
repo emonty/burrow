@@ -103,8 +103,7 @@ class Backend(burrow.backend.Backend):
 
     def create_message(self, account, queue, message, body, attributes={}):
         account, queue = self.accounts.get_queue(account, queue, True)
-        ttl, hide = self._get_attributes(attributes, default_ttl=0,
-            default_hide=0)
+        ttl, hide = self._get_attributes(attributes, ttl=0, hide=0)
         try:
             message = queue.messages.get(message)
             created = False
@@ -161,32 +160,6 @@ class Backend(burrow.backend.Backend):
                     self.notify(account.id, queue.id)
                 if queue.messages.count() == 0:
                     self.accounts.delete_queue(account.id, queue.id)
-
-    def _get_attributes(self, attributes, default_ttl=None, default_hide=None):
-        ttl = attributes.get('ttl', default_ttl)
-        if ttl is not None and ttl > 0:
-            ttl += int(time.time())
-        hide = attributes.get('hide', default_hide)
-        if hide is not None and hide > 0:
-            hide += int(time.time())
-        return ttl, hide
-
-    def _get_detail(self, filters, default=None):
-        detail = filters.get('detail', default)
-        if detail == 'none':
-            detail = None
-        elif detail is not None and detail not in ['id', 'all']:
-            raise burrow.backend.BadDetail(detail)
-        return detail
-
-    def _get_message_detail(self, filters, default=None):
-        detail = filters.get('detail', default)
-        options = ['id', 'attributes', 'body', 'all']
-        if detail == 'none':
-            detail = None
-        elif detail is not None and detail not in options:
-            raise burrow.backend.BadDetail(detail)
-        return detail
 
 
 class Item(object):
