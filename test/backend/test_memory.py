@@ -16,6 +16,9 @@ import ConfigParser
 import time
 import unittest
 
+import eventlet
+eventlet.monkey_patch(socket=True)
+
 import burrow.backend
 import burrow.backend.memory
 
@@ -884,7 +887,48 @@ class TestMemory(unittest.TestCase):
         self.assertEquals(dict(id='0', ttl=0, hide=0, body='0'), message)
         self.delete_messages()
 
+    def test_message_create_wait(self):
+        self.success = False
+        thread = eventlet.spawn(self.get_messages)
+        eventlet.spawn_after(0.2,
+            self.backend.create_message, 'a', 'q', 'm', 'test')
+        thread.wait()
+        self.assertTrue(self.success)
+        self.delete_messages()
+
+    def test_message_update_wait(self):
+        attributes = dict(hide=100)
+        self.backend.create_message('a', 'q', 'm', 'test', attributes)
+        self.success = False
+        thread = eventlet.spawn(self.get_messages)
+        attributes = dict(hide=0)
+        eventlet.spawn_after(0.2,
+            self.backend.update_message, 'a', 'q', 'm', attributes)
+        thread.wait()
+        self.assertTrue(self.success)
+        self.delete_messages()
+
+    def test_messages_update_wait(self):
+        attributes = dict(hide=100)
+        self.backend.create_message('a', 'q', 'm', 'test', attributes)
+        self.success = False
+        thread = eventlet.spawn(self.get_messages)
+        attributes = dict(hide=0)
+        filters = dict(match_hidden=True)
+        messages = self.backend.update_messages('a', 'q', attributes, filters)
+        eventlet.spawn_after(0.2, list, messages)
+        thread.wait()
+        self.assertTrue(self.success)
+        self.delete_messages()
+
     def delete_messages(self):
         filters = dict(match_hidden=True)
         messages = list(self.backend.delete_messages('a', 'q', filters))
         self.assertEquals([], messages)
+
+    def get_messages(self):
+        message = dict(id='m', ttl=0, hide=0, body='test')
+        filters = dict(wait=2)
+        messages = list(self.backend.get_messages('a', 'q', filters))
+        self.assertEquals([message], messages)
+        self.success = True
