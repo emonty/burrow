@@ -172,29 +172,34 @@ class Frontend(burrow.frontend.Frontend):
 
     @webob.dec.wsgify
     def _delete_message(self, req, account, queue, message):
+        filters = self._parse_filters(req)
         try:
-            message = self.backend.delete_message(account, queue, message)
+            message = self.backend.delete_message(account, queue, message,
+                filters)
         except burrow.backend.NotFound:
             return self._response(status=404)
-        return self._return_message(req, account, queue, message, 'none')
+        return self._response(body=message)
 
     @webob.dec.wsgify
     def _get_message(self, req, account, queue, message):
+        filters = self._parse_filters(req)
         try:
-            message = self.backend.get_message(account, queue, message)
+            message = self.backend.get_message(account, queue, message,
+                filters)
         except burrow.backend.NotFound:
             return self._response(status=404)
-        return self._return_message(req, account, queue, message, 'all')
+        return self._response(body=message)
 
     @webob.dec.wsgify
     def _post_message(self, req, account, queue, message):
         attributes = self._parse_attributes(req)
+        filters = self._parse_filters(req)
         try:
             message = self.backend.update_message(account, queue, message,
-                attributes)
+                attributes, filters)
         except burrow.backend.NotFound:
             return self._response(status=404)
-        return self._return_message(req, account, queue, message, 'id')
+        return self._response(body=message)
 
     @webob.dec.wsgify
     def _put_message(self, req, account, queue, message):
@@ -206,28 +211,6 @@ class Frontend(burrow.frontend.Frontend):
         if self.backend.create_message(account, queue, message, body,
             attributes):
             return self._response(status=201)
-        return self._response()
-
-    def _filter_message(self, detail, message):
-        if detail == 'id':
-            return dict(id=message['id'])
-        elif detail == 'attributes':
-            message = message.copy()
-            del message['body']
-            return message
-        elif detail == 'all':
-            return message
-        return None
-
-    def _return_message(self, req, account, queue, message, detail):
-        if 'detail' in req.params:
-            detail = req.params['detail']
-        if detail == 'body':
-            return self._response(body=message['body'],
-                content_type="application/octet-stream")
-        message = self._filter_message(detail, message)
-        if message is not None:
-            return self._response(body=message)
         return self._response()
 
     def _parse_filters(self, req):
@@ -272,7 +255,10 @@ class Frontend(burrow.frontend.Frontend):
                 status = 204
         else:
             if content_type is None:
-                content_type = 'application/json'
+                if isinstance(body, list) or isinstance(body, dict):
+                    content_type = 'application/json'
+                else:
+                    content_type = "application/octet-stream"
             if content_type == 'application/json':
                 body = json.dumps(body, indent=2)
         return webob.Response(status=status, body=body,

@@ -12,10 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import ConfigParser
+import os
+
 import burrow.backend.sqlite
 import test.backend.test_memory
 
 
 class TestSQLite(test.backend.test_memory.TestMemory):
-    '''Unittests for the SQLite backend.'''
-    backend_class = burrow.backend.sqlite.Backend
+    '''Unittests for the memory-based SQLite backend.'''
+
+    def setUp(self):
+        config = (ConfigParser.ConfigParser(), 'test')
+        self.backend = burrow.backend.sqlite.Backend(config)
+        self.check_empty()
+
+
+class TestSQLiteFile(test.backend.test_memory.TestMemory):
+    '''Unittests for the file-based SQLite backend.'''
+
+    def setUp(self):
+        try:
+            os.unlink('TestSQLiteFile.db')
+        except OSError:
+            pass
+        config = ConfigParser.ConfigParser()
+        config.add_section('test')
+        config.set('test', 'url', 'sqlite://TestSQLiteFile.db')
+        config.set('test', 'synchronous', 'OFF')
+        config = (config, 'test')
+        self.backend = burrow.backend.sqlite.Backend(config)
+        self.check_empty()
+
+    def tearDown(self):
+        self.check_empty()
+        os.unlink('TestSQLiteFile.db')
