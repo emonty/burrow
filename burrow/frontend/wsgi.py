@@ -173,33 +173,24 @@ class Frontend(burrow.frontend.Frontend):
     @webob.dec.wsgify
     def _delete_message(self, req, account, queue, message):
         filters = self._parse_filters(req)
-        try:
-            message = self.backend.delete_message(account, queue, message,
-                filters)
-        except burrow.backend.NotFound:
-            return self._response(status=404)
-        return self._response(body=message)
+        body = lambda: self.backend.delete_message(account, queue, message,
+            filters)
+        return self._response(body=body)
 
     @webob.dec.wsgify
     def _get_message(self, req, account, queue, message):
         filters = self._parse_filters(req)
-        try:
-            message = self.backend.get_message(account, queue, message,
-                filters)
-        except burrow.backend.NotFound:
-            return self._response(status=404)
-        return self._response(body=message)
+        body = lambda: self.backend.get_message(account, queue, message,
+            filters)
+        return self._response(body=body)
 
     @webob.dec.wsgify
     def _post_message(self, req, account, queue, message):
         attributes = self._parse_attributes(req)
         filters = self._parse_filters(req)
-        try:
-            message = self.backend.update_message(account, queue, message,
-                attributes, filters)
-        except burrow.backend.NotFound:
-            return self._response(status=404)
-        return self._response(body=message)
+        body = lambda: self.backend.update_message(account, queue, message,
+            attributes, filters)
+        return self._response(body=body)
 
     @webob.dec.wsgify
     def _put_message(self, req, account, queue, message):
@@ -241,12 +232,17 @@ class Frontend(burrow.frontend.Frontend):
         return attributes
 
     def _response(self, status=200, body=None, content_type=None):
-        if isinstance(body, types.GeneratorType):
-            try:
+        try:
+            if isinstance(body, types.GeneratorType):
                 body = list(body)
-            except burrow.backend.NotFound:
-                body = None
-                status = 404
+            if isinstance(body, types.FunctionType):
+                body = body()
+        except burrow.backend.InvalidArguments:
+            status = 400
+            body = None
+        except burrow.backend.NotFound:
+            status = 404
+            body = None
         if body == []:
             body = None
         if body is None:
@@ -258,11 +254,17 @@ class Frontend(burrow.frontend.Frontend):
                 if isinstance(body, list) or isinstance(body, dict):
                     content_type = 'application/json'
                 else:
-                    content_type = "application/octet-stream"
+                    content_type = 'application/octet-stream'
             if content_type == 'application/json':
                 body = json.dumps(body, indent=2)
-        return webob.Response(status=status, body=body,
-            content_type=content_type)
+        response = webob.Response(status=status)
+        if body is not None:
+            response.content_type = content_type
+            if isinstance(body, unicode):
+                response.unicode_body = body
+            else:
+                response.body = body
+        return response
 
 
 class WSGILog(object):

@@ -75,7 +75,7 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         accounts = self.backend.delete_accounts(filters)
-        self.assertRaises(burrow.backend.BadDetail, list, accounts)
+        self.assertRaises(burrow.backend.InvalidArguments, list, accounts)
         self.assertEquals([], list(self.backend.delete_accounts()))
 
     def test_accounts_delete_marker(self):
@@ -145,7 +145,7 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         accounts = self.backend.get_accounts(filters)
-        self.assertRaises(burrow.backend.BadDetail, list, accounts)
+        self.assertRaises(burrow.backend.InvalidArguments, list, accounts)
         self.assertEquals([], list(self.backend.delete_accounts()))
 
     def test_accounts_get_marker(self):
@@ -237,7 +237,7 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         queues = self.backend.delete_queues('a', filters)
-        self.assertRaises(burrow.backend.BadDetail, list, queues)
+        self.assertRaises(burrow.backend.InvalidArguments, list, queues)
         self.assertEquals([], list(self.backend.delete_queues('a')))
 
     def test_queues_delete_marker(self):
@@ -307,7 +307,7 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         queues = self.backend.get_queues('a', filters)
-        self.assertRaises(burrow.backend.BadDetail, list, queues)
+        self.assertRaises(burrow.backend.InvalidArguments, list, queues)
         self.assertEquals([], list(self.backend.delete_queues('a')))
 
     def test_queues_get_marker(self):
@@ -428,7 +428,7 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         messages = self.backend.delete_messages('a', 'q', filters)
-        self.assertRaises(burrow.backend.BadDetail, list, messages)
+        self.assertRaises(burrow.backend.InvalidArguments, list, messages)
         self.assertEquals([], list(self.backend.delete_messages('a', 'q')))
 
     def test_messages_delete_marker(self):
@@ -514,7 +514,7 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         messages = self.backend.get_messages('a', 'q', filters)
-        self.assertRaises(burrow.backend.BadDetail, list, messages)
+        self.assertRaises(burrow.backend.InvalidArguments, list, messages)
         self.delete_messages()
 
     def test_messages_get_marker(self):
@@ -618,7 +618,7 @@ class TestMemory(unittest.TestCase):
         attributes = dict(ttl=100, hide=200)
         filters = dict(detail='bad')
         messages = self.backend.update_messages('a', 'q', attributes, filters)
-        self.assertRaises(burrow.backend.BadDetail, list, messages)
+        self.assertRaises(burrow.backend.InvalidArguments, list, messages)
         self.delete_messages()
 
     def test_messages_update_marker(self):
@@ -752,7 +752,7 @@ class TestMemory(unittest.TestCase):
     def test_message_delete_detail_bad(self):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
-        self.assertRaises(burrow.backend.BadDetail,
+        self.assertRaises(burrow.backend.InvalidArguments,
             self.backend.delete_message, 'a', 'q', 'm', filters)
         self.delete_messages()
 
@@ -794,7 +794,7 @@ class TestMemory(unittest.TestCase):
     def test_message_get_detail_bad(self):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
-        self.assertRaises(burrow.backend.BadDetail,
+        self.assertRaises(burrow.backend.InvalidArguments,
             self.backend.get_message, 'a', 'q', 'm', filters)
         self.delete_messages()
 
@@ -848,27 +848,27 @@ class TestMemory(unittest.TestCase):
         self.backend.create_message('a', 'q', 'm', 'test')
         attributes = dict(ttl=100, hide=200)
         filters = dict(detail='bad')
-        self.assertRaises(burrow.backend.BadDetail,
+        self.assertRaises(burrow.backend.InvalidArguments,
             self.backend.update_message, 'a', 'q', 'm', attributes, filters)
         self.delete_messages()
 
     def test_message_ttl(self):
         attributes = dict(ttl=1)
         self.backend.create_message('a', 'q', 'm', 'test', attributes)
-        time.sleep(1)
+        time.sleep(2)
         self.backend.clean()
 
     def test_message_ttl_large(self):
         attributes = dict(ttl=1)
         for x in xrange(0, 1000):
             self.backend.create_message('a', 'q', str(x), str(x), attributes)
-        time.sleep(1)
+        time.sleep(2)
         self.backend.clean()
 
     def test_message_hide(self):
         attributes = dict(hide=1)
         self.backend.create_message('a', 'q', 'm', 'test', attributes)
-        time.sleep(1)
+        time.sleep(2)
         self.backend.clean()
         message = self.backend.get_message('a', 'q', 'm')
         self.assertEquals(dict(id='m', ttl=0, hide=0, body='test'), message)
@@ -878,7 +878,7 @@ class TestMemory(unittest.TestCase):
         attributes = dict(hide=1)
         for x in xrange(0, 1000):
             self.backend.create_message('a', 'q', str(x), str(x), attributes)
-        time.sleep(1)
+        time.sleep(2)
         self.backend.clean()
         message = self.backend.get_message('a', 'q', '0')
         self.assertEquals(dict(id='0', ttl=0, hide=0, body='0'), message)
