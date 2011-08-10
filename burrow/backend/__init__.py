@@ -112,7 +112,7 @@ class Backend(burrow.common.Module):
         if detail == 'none':
             detail = None
         elif detail is not None and detail not in ['id', 'all']:
-            raise burrow.backend.BadDetail(detail)
+            raise burrow.backend.InvalidArguments(detail)
         return detail
 
     def _get_message_detail(self, filters, default=None):
@@ -121,7 +121,7 @@ class Backend(burrow.common.Module):
         if detail == 'none':
             detail = None
         elif detail is not None and detail not in options:
-            raise burrow.backend.BadDetail(detail)
+            raise burrow.backend.InvalidArguments(detail)
         return detail
 
 
@@ -129,5 +129,5 @@ class NotFound(Exception):
     pass
 
 
-class BadDetail(Exception):
+class InvalidArguments(Exception):
     pass

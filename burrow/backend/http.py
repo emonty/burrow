@@ -67,7 +67,7 @@ class Backend(burrow.backend.Backend):
         url = self._add_parameters(url, filters=filters)
         return self._request('GET', url)
 
-    def update_messages(self, account, queue, attributes={}, filters={}):
+    def update_messages(self, account, queue, attributes, filters={}):
         url = '/%s/%s' % (account, queue)
         url = self._add_parameters(url, attributes, filters)
         return self._request('POST', url)
@@ -75,20 +75,34 @@ class Backend(burrow.backend.Backend):
     def create_message(self, account, queue, message, body, attributes={}):
         url = '/%s/%s/%s' % (account, queue, message)
         url = self._add_parameters(url, attributes)
-        return self._request('PUT', url, body=body)
+        try:
+            return self._request('PUT', url, body=body).next()
+        except StopIteration:
+            return False
 
-    def delete_message(self, account, queue, message):
+    def delete_message(self, account, queue, message, filters={}):
         url = '/%s/%s/%s' % (account, queue, message)
-        return self._request('DELETE', url)
+        url = self._add_parameters(url, filters=filters)
+        try:
+            return self._request('DELETE', url).next()
+        except StopIteration:
+            return None
 
-    def get_message(self, account, queue, message):
+    def get_message(self, account, queue, message, filters={}):
         url = '/%s/%s/%s' % (account, queue, message)
-        return self._request('GET', url)
+        url = self._add_parameters(url, filters=filters)
+        try:
+            return self._request('GET', url).next()
+        except StopIteration:
+            return None
 
-    def update_message(self, account, queue, message, attributes={}):
+    def update_message(self, account, queue, message, attributes, filters={}):
         url = '/%s/%s/%s' % (account, queue, message)
-        url = self._add_parameters(url, attributes)
-        return self._request('POST', url)
+        url = self._add_parameters(url, attributes, filters)
+        try:
+            return self._request('POST', url).next()
+        except StopIteration:
+            return None
 
     def clean(self):
         pass
@@ -111,7 +125,21 @@ class Backend(burrow.backend.Backend):
         connection = httplib.HTTPConnection(*self.server)
         connection.request(method, '/v1.0' + url, *args, **kwargs)
         response = connection.getresponse()
-        if response.status == 200:
-            return json.loads(response.read())
-        if response.status >= 400:
-            raise Exception(response.reason)
+        if response.status >= 200 and response.status < 300:
+            if int(response.getheader('content-length')) == 0:
+                if response.status == 201:
+                    yield True
+                return
+            body = response.read()
+            if response.getheader('content-type')[:16] == 'application/json':
+                body = json.loads(body)
+                if isinstance(body, list):
+                    for item in body:
+                        yield item
+                    return
+            yield body
+        if response.status == 400:
+            raise burrow.backend.InvalidArguments()
+        if response.status == 404:
+            raise burrow.backend.NotFound()
+        raise Exception(response.reason)
