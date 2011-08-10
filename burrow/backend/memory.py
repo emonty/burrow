@@ -67,6 +67,7 @@ class Backend(burrow.backend.Backend):
             if detail is not None:
                 yield queue.detail(detail)
 
+    @burrow.backend.wait_without_attributes
     def delete_messages(self, account, queue, filters={}):
         account, queue = self.accounts.get_queue(account, queue)
         detail = self._get_message_detail(filters)
@@ -77,6 +78,7 @@ class Backend(burrow.backend.Backend):
         if queue.messages.count() == 0:
             self.accounts.delete_queue(account.id, queue.id)
 
+    @burrow.backend.wait_without_attributes
     def get_messages(self, account, queue, filters={}):
         account, queue = self.accounts.get_queue(account, queue)
         detail = self._get_message_detail(filters, 'all')
@@ -84,6 +86,7 @@ class Backend(burrow.backend.Backend):
             if detail is not None:
                 yield message.detail(detail)
 
+    @burrow.backend.wait_with_attributes
     def update_messages(self, account, queue, attributes, filters={}):
         account, queue = self.accounts.get_queue(account, queue)
         notify = False
@@ -99,7 +102,7 @@ class Backend(burrow.backend.Backend):
             if detail is not None:
                 yield message.detail(detail)
         if notify:
-            self.notify(account.id, queue.id)
+            self._notify(account.id, queue.id)
 
     def create_message(self, account, queue, message, body, attributes={}):
         account, queue = self.accounts.get_queue(account, queue, True)
@@ -114,7 +117,7 @@ class Backend(burrow.backend.Backend):
         message.hide = hide
         message.body = body
         if created or hide == 0:
-            self.notify(account.id, queue.id)
+            self._notify(account.id, queue.id)
         return created
 
     def delete_message(self, account, queue, message, filters={}):
@@ -142,7 +145,7 @@ class Backend(burrow.backend.Backend):
         if hide is not None:
             message.hide = hide
             if hide == 0:
-                self.notify(account.id, queue.id)
+                self._notify(account.id, queue.id)
         return message.detail(detail)
 
     def clean(self):
@@ -157,7 +160,7 @@ class Backend(burrow.backend.Backend):
                         message.hide = 0
                         notify = True
                 if notify:
-                    self.notify(account.id, queue.id)
+                    self._notify(account.id, queue.id)
                 if queue.messages.count() == 0:
                     self.accounts.delete_queue(account.id, queue.id)
 

@@ -66,26 +66,6 @@ class Backend(burrow.common.Module):
     def update_message(self, account, queue, message, attributes, filters={}):
         return None
 
-    def notify(self, account, queue):
-        '''Notify any waiting callers that the account/queue has
-        a visible message.'''
-        queue = '%s/%s' % (account, queue)
-        if queue in self.queues:
-            for count in xrange(0, self.queues[queue].getting()):
-                self.queues[queue].put(0)
-
-    def wait(self, account, queue, seconds):
-        '''Wait for a message to appear in the account/queue.'''
-        queue = '%s/%s' % (account, queue)
-        if queue not in self.queues:
-            self.queues[queue] = eventlet.Queue()
-        try:
-            self.queues[queue].get(timeout=seconds)
-        except Exception:
-            pass
-        if self.queues[queue].getting() == 0:
-            del self.queues[queue]
-
     def clean(self):
         '''This method should remove all messages with an expired
         TTL and make hidden messages that have an expired hide time
@@ -123,6 +103,60 @@ class Backend(burrow.common.Module):
         elif detail is not None and detail not in options:
             raise burrow.backend.InvalidArguments(detail)
         return detail
+
+    def _notify(self, account, queue):
+        '''Notify any waiting callers that the account/queue has
+        a visible message.'''
+        queue = '%s/%s' % (account, queue)
+        if queue in self.queues:
+            for count in xrange(0, self.queues[queue].getting()):
+                self.queues[queue].put(0)
+
+    def _wait(self, account, queue, seconds):
+        '''Wait for a message to appear in the account/queue.'''
+        queue = '%s/%s' % (account, queue)
+        if queue not in self.queues:
+            self.queues[queue] = eventlet.Queue()
+        try:
+            self.queues[queue].get(timeout=seconds)
+        except Exception:
+            pass
+        if self.queues[queue].getting() == 0:
+            del self.queues[queue]
+
+
+def wait_without_attributes(method):
+    def wrapper(self, account, queue, filters={}):
+        original = lambda: method(self, account, queue, filters)
+        return wait(self, account, queue, filters, original)
+    return wrapper
+
+
+def wait_with_attributes(method):
+    def wrapper(self, account, queue, attributes, filters={}):
+        original = lambda: method(self, account, queue, attributes, filters)
+        return wait(self, account, queue, filters, original)
+    return wrapper
+
+
+def wait(self, account, queue, filters, method):
+    '''Decorator to wait on a queue if the wait option is given. This
+    will block until a message in the queue is ready or the timeout
+    expires.'''
+    wait = filters.get('wait', 0)
+    if wait > 0:
+        wait += time.time()
+    while True:
+        try:
+            for message in method():
+                yield message
+            return
+        except burrow.backend.NotFound, e:
+            now = time.time()
+            if wait - now > 0:
+                self._wait(account, queue, wait - now)
+            if wait < time.time():
+                raise e
 
 
 class NotFound(Exception):

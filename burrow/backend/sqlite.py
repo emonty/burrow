@@ -211,6 +211,7 @@ class Backend(burrow.backend.Backend):
             raise burrow.backend.NotFound()
         return rows[0][0]
 
+    @burrow.backend.wait_without_attributes
     def delete_messages(self, account, queue, filters={}):
         account_rowid = self._get_account(account)
         queue_rowid = self._get_queue(account_rowid, queue)
@@ -257,6 +258,7 @@ class Backend(burrow.backend.Backend):
             return dict(id=row[0], ttl=ttl, hide=hide, body=str(row[3]))
         return None
 
+    @burrow.backend.wait_without_attributes
     def get_messages(self, account, queue, filters={}):
         account_rowid = self._get_account(account)
         queue_rowid = self._get_queue(account_rowid, queue)
@@ -304,6 +306,7 @@ class Backend(burrow.backend.Backend):
             return rows[0]
         return rows[0][0]
 
+    @burrow.backend.wait_with_attributes
     def update_messages(self, account, queue, attributes, filters={}):
         account_rowid = self._get_account(account)
         queue_rowid = self._get_queue(account_rowid, queue)
@@ -329,7 +332,7 @@ class Backend(burrow.backend.Backend):
             if self._update_messages(ttl, hide, ids):
                 notify = True
         if notify:
-            self.notify(account, queue)
+            self._notify(account, queue)
 
     def _update_messages(self, ttl, hide, ids):
         query = 'UPDATE messages SET '
@@ -372,7 +375,7 @@ class Backend(burrow.backend.Backend):
             self.db.execute(query, (queue_rowid, message, ttl, hide, body))
             created = True
         if created or hide == 0:
-            self.notify(account, queue)
+            self._notify(account, queue)
         return created
 
     def delete_message(self, account, queue, message, filters={}):
@@ -396,7 +399,7 @@ class Backend(burrow.backend.Backend):
         detail = self._get_message_detail(filters)
         ttl, hide = self._get_attributes(attributes)
         if self._update_messages(ttl, hide, [row[0]]):
-            self.notify(account, queue)
+            self._notify(account, queue)
         row = list(row)
         if ttl is not None:
             row[2] = ttl
@@ -444,4 +447,4 @@ class Backend(burrow.backend.Backend):
                 'ON queues.account=accounts.rowid ' \
                 'WHERE queues.rowid=?'
             result = self.db.execute(query, (queue,)).fetchall()[0]
-            self.notify(result[0], result[1])
+            self._notify(result[0], result[1])

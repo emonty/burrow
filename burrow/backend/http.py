@@ -139,7 +139,7 @@ class Backend(burrow.backend.Backend):
                     return
             yield body
         if response.status == 400:
-            raise burrow.backend.InvalidArguments()
+            raise burrow.backend.InvalidArguments(response.reason)
         if response.status == 404:
             raise burrow.backend.NotFound()
         raise Exception(response.reason)

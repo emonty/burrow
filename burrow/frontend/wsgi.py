@@ -15,7 +15,6 @@
 '''WSGI frontend for the burrow server.'''
 
 import json
-import time
 import types
 
 import eventlet
@@ -37,30 +36,6 @@ DEFAULT_SSL_KEYFILE = 'example.key'
 DEFAULT_THREAD_POOL_SIZE = 0
 DEFAULT_TTL = 600
 DEFAULT_HIDE = 0
-
-
-def wait_on_queue(method):
-    '''Decorator to wait on an account/queue if the wait option is
-    given. This will block until a message in the queue is ready or
-    the timeout expires.'''
-    def wrapper(self, req, account, queue, *args, **kwargs):
-        '''Wrapper method for wait_on_queue.'''
-        wait = 0
-        if 'wait' in req.params:
-            wait = int(req.params['wait'])
-            if wait > 0:
-                wait += time.time()
-        while True:
-            res = method(self, req, account, queue, *args, **kwargs)
-            if wait == 0 or res.status_int != 404:
-                break
-            now = time.time()
-            if wait - now > 0:
-                self.backend.wait(account, queue, wait - now)
-            if wait < time.time():
-                break
-        return res
-    return wrapper
 
 
 class Frontend(burrow.frontend.Frontend):
@@ -148,21 +123,18 @@ class Frontend(burrow.frontend.Frontend):
         return self._response(body=self.backend.get_queues(account, filters))
 
     @webob.dec.wsgify
-    @wait_on_queue
     def _delete_messages(self, req, account, queue):
         filters = self._parse_filters(req)
         messages = self.backend.delete_messages(account, queue, filters)
         return self._response(body=messages)
 
     @webob.dec.wsgify
-    @wait_on_queue
     def _get_messages(self, req, account, queue):
         filters = self._parse_filters(req)
         messages = self.backend.get_messages(account, queue, filters)
         return self._response(body=messages)
 
     @webob.dec.wsgify
-    @wait_on_queue
     def _post_messages(self, req, account, queue):
         attributes = self._parse_attributes(req)
         filters = self._parse_filters(req)
@@ -215,6 +187,8 @@ class Frontend(burrow.frontend.Frontend):
             filters['match_hidden'] = True
         if 'detail' in req.params:
             filters['detail'] = req.params['detail']
+        if 'wait' in req.params:
+            filters['wait'] = int(req.params['wait'])
         return filters
 
     def _parse_attributes(self, req, default_ttl=None, default_hide=None):

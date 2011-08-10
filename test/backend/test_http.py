@@ -34,7 +34,7 @@ class TestHTTP(test.backend.test_memory.TestMemory):
 
 def kill_server():
     try:
-        pid_file = open('server.pid', 'r')
+        pid_file = open('TestHTTP.pid', 'r')
         pid = pid_file.read()
         pid_file.close()
         try:
@@ -43,12 +43,13 @@ def kill_server():
             os.kill(int(pid), signal.SIGTERM)
         except OSError:
             pass
-        os.unlink('server.pid')
+        os.unlink('TestHTTP.pid')
     except IOError:
         pass
 
 
 def start_server():
+    kill_server()
     pid = os.fork()
     if pid == 0:
         try:
@@ -66,12 +67,11 @@ def start_server():
         server.frontends[0].default_ttl = 0
         server.run()
         os.exit(0)
-    pid_file = open('server.pid', 'w')
+    pid_file = open('TestHTTP.pid', 'w')
     pid_file.write(str(pid))
     pid_file.close()
+    atexit.register(kill_server)
     time.sleep(1)
 
 
-kill_server()
 start_server()
-atexit.register(kill_server)
