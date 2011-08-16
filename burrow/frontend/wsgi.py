@@ -17,9 +17,7 @@
 import json
 import types
 
-import eventlet
 import eventlet.wsgi
-import routes
 import routes.middleware
 import webob.dec
 
@@ -77,10 +75,10 @@ class Frontend(burrow.frontend.Frontend):
         log_format = '%(client_ip)s "%(request_line)s" %(status_code)s ' \
                      '%(body_length)s %(wall_seconds).6f'
         if thread_pool_size == 0:
-            eventlet.wsgi.server(socket, self, log=WSGILog(self.log),
+            eventlet.wsgi.server(socket, self, log=_WSGILog(self.log),
                 log_format=log_format, custom_pool=thread_pool)
         else:
-            eventlet.wsgi.server(socket, self, log=WSGILog(self.log),
+            eventlet.wsgi.server(socket, self, log=_WSGILog(self.log),
                 log_format=log_format, max_size=thread_pool_size)
 
     def __call__(self, *args, **kwargs):
@@ -88,84 +86,33 @@ class Frontend(burrow.frontend.Frontend):
 
     @webob.dec.wsgify
     def _route(self, req):
+        '''Parse the request args and see if there is a matching method.'''
         args = req.environ['wsgiorg.routing_args'][1]
         if not args:
             return self._response(status=404)
         action = args.pop('action')
-        method = getattr(self, '_%s_%s' % (req.method.lower(), action), False)
-        if not method:
+        method = getattr(self, '_%s_%s' % (req.method.lower(), action), None)
+        if method is not None:
+            return method(req, **args)
+        method = req.method.lower()
+        args = dict(args)
+        if method == 'post':
+            method = 'update'
+            args['attributes'] = self._parse_attributes(req)
+        method = getattr(self.backend, '%s_%s' % (method, action), None)
+        if method is None:
             return self._response(status=400)
-        return method(req, **args)
+        args['filters'] = self._parse_filters(req)
+        return self._response(body=lambda: method(**args))
 
     @webob.dec.wsgify
     def _get_versions(self, _req):
+        '''Return a list of API versions.'''
         return self._response(body=['v1.0'])
 
     @webob.dec.wsgify
-    def _delete_accounts(self, req):
-        filters = self._parse_filters(req)
-        return self._response(body=self.backend.delete_accounts(filters))
-
-    @webob.dec.wsgify
-    def _get_accounts(self, req):
-        filters = self._parse_filters(req)
-        return self._response(body=self.backend.get_accounts(filters))
-
-    @webob.dec.wsgify
-    def _delete_queues(self, req, account):
-        filters = self._parse_filters(req)
-        queues = self.backend.delete_queues(account, filters)
-        return self._response(body=queues)
-
-    @webob.dec.wsgify
-    def _get_queues(self, req, account):
-        filters = self._parse_filters(req)
-        return self._response(body=self.backend.get_queues(account, filters))
-
-    @webob.dec.wsgify
-    def _delete_messages(self, req, account, queue):
-        filters = self._parse_filters(req)
-        messages = self.backend.delete_messages(account, queue, filters)
-        return self._response(body=messages)
-
-    @webob.dec.wsgify
-    def _get_messages(self, req, account, queue):
-        filters = self._parse_filters(req)
-        messages = self.backend.get_messages(account, queue, filters)
-        return self._response(body=messages)
-
-    @webob.dec.wsgify
-    def _post_messages(self, req, account, queue):
-        attributes = self._parse_attributes(req)
-        filters = self._parse_filters(req)
-        messages = self.backend.update_messages(account, queue, attributes,
-            filters)
-        return self._response(body=messages)
-
-    @webob.dec.wsgify
-    def _delete_message(self, req, account, queue, message):
-        filters = self._parse_filters(req)
-        body = lambda: self.backend.delete_message(account, queue, message,
-            filters)
-        return self._response(body=body)
-
-    @webob.dec.wsgify
-    def _get_message(self, req, account, queue, message):
-        filters = self._parse_filters(req)
-        body = lambda: self.backend.get_message(account, queue, message,
-            filters)
-        return self._response(body=body)
-
-    @webob.dec.wsgify
-    def _post_message(self, req, account, queue, message):
-        attributes = self._parse_attributes(req)
-        filters = self._parse_filters(req)
-        body = lambda: self.backend.update_message(account, queue, message,
-            attributes, filters)
-        return self._response(body=body)
-
-    @webob.dec.wsgify
     def _put_message(self, req, account, queue, message):
+        '''Read the request body and create a new message.'''
         attributes = self._parse_attributes(req, self.default_ttl,
             self.default_hide)
         body = ''
@@ -177,6 +124,8 @@ class Frontend(burrow.frontend.Frontend):
         return self._response()
 
     def _parse_filters(self, req):
+        '''Parse filters from a request object and build a dict to
+        pass into the backend methods.'''
         filters = {}
         if 'limit' in req.params:
             filters['limit'] = int(req.params['limit'])
@@ -192,6 +141,8 @@ class Frontend(burrow.frontend.Frontend):
         return filters
 
     def _parse_attributes(self, req, default_ttl=None, default_hide=None):
+        '''Parse attributes from a request object and build a dict
+        to pass into the backend methods.'''
         attributes = {}
         if 'ttl' in req.params:
             ttl = int(req.params['ttl'])
@@ -206,19 +157,8 @@ class Frontend(burrow.frontend.Frontend):
         return attributes
 
     def _response(self, status=200, body=None, content_type=None):
-        try:
-            if isinstance(body, types.GeneratorType):
-                body = list(body)
-            if isinstance(body, types.FunctionType):
-                body = body()
-        except burrow.backend.InvalidArguments:
-            status = 400
-            body = None
-        except burrow.backend.NotFound:
-            status = 404
-            body = None
-        if body == []:
-            body = None
+        '''Pack result into an appropriate HTTP response.'''
+        status, body = self._response_body(status, body)
         if body is None:
             content_type = ''
             if status == 200:
@@ -240,12 +180,30 @@ class Frontend(burrow.frontend.Frontend):
                 response.body = body
         return response
 
+    def _response_body(self, status, body):
+        '''Normalize the body from the type given.'''
+        try:
+            if isinstance(body, types.FunctionType):
+                body = body()
+            if isinstance(body, types.GeneratorType):
+                body = list(body)
+        except burrow.backend.InvalidArguments:
+            status = 400
+            body = None
+        except burrow.backend.NotFound:
+            status = 404
+            body = None
+        if body == []:
+            body = None
+        return status, body
 
-class WSGILog(object):
+
+class _WSGILog(object):
     '''Class for eventlet.wsgi.server to forward logging messages.'''
 
     def __init__(self, log):
         self.log = log
 
     def write(self, message):
+        '''Write WSGI log message to burrow log.'''
         self.log.debug(message.rstrip())
