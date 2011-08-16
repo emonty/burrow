@@ -12,15 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+'''Unittests for the sqlite backend.'''
+
 import ConfigParser
 import os
 
 import burrow.backend.sqlite
-import test.backend.test_memory
+import test.backend
 
 
-class TestSQLite(test.backend.test_memory.TestMemory):
-    '''Unittests for the memory-based SQLite backend.'''
+class SQLiteBase(test.backend.Base):
+    '''Base test case for sqlite backend.'''
 
     def setUp(self):
         config = (ConfigParser.ConfigParser(), 'test')
@@ -28,8 +30,28 @@ class TestSQLite(test.backend.test_memory.TestMemory):
         self.check_empty()
 
 
-class TestSQLiteFile(test.backend.test_memory.TestMemory):
-    '''Unittests for the file-based SQLite backend.'''
+class TestSQLiteAccounts(SQLiteBase, test.backend.TestAccounts):
+    '''Test case for accounts with sqlite backend.'''
+    pass
+
+
+class TestSQLiteQueues(SQLiteBase, test.backend.TestQueues):
+    '''Test case for queues with sqlite backend.'''
+    pass
+
+
+class TestSQLiteMessages(SQLiteBase, test.backend.TestMessages):
+    '''Test case for messages with sqlite backend.'''
+    pass
+
+
+class TestSQLiteMessage(SQLiteBase, test.backend.TestMessage):
+    '''Test case for message with sqlite backend.'''
+    pass
+
+
+class SQLiteFileBase(test.backend.Base):
+    '''Base test case for file-based sqlite backend.'''
 
     def setUp(self):
         try:
@@ -47,3 +69,23 @@ class TestSQLiteFile(test.backend.test_memory.TestMemory):
     def tearDown(self):
         self.check_empty()
         os.unlink('TestSQLiteFile.db')
+
+
+class TestSQLiteFileAccounts(SQLiteFileBase, test.backend.TestAccounts):
+    '''Test case for accounts with file-based sqlite backend.'''
+    pass
+
+
+class TestSQLiteFileQueues(SQLiteFileBase, test.backend.TestQueues):
+    '''Test case for queues with file-based sqlite backend.'''
+    pass
+
+
+class TestSQLiteFileMessages(SQLiteFileBase, test.backend.TestMessages):
+    '''Test case for messages with file-based sqlite backend.'''
+    pass
+
+
+class TestSQLiteFileMessage(SQLiteFileBase, test.backend.TestMessage):
+    '''Test case for message with file-based sqlite backend.'''
+    pass

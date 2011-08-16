@@ -1,5 +1,10 @@
+[Basic]
+method-rgx=([a-z_][a-z0-9_]{2,30}$)|setUp|tearDown
+no-docstring-rgx=(__.*__)|(test_.*)
+
 [Design]
 min-public-methods=0
+max-public-methods=80
 
 [Messages Control]
 # W0142: Allow use of *args and **kwargs
