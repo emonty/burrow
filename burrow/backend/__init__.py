@@ -22,7 +22,7 @@ import burrow.common
 
 
 class Backend(burrow.common.Module):
-    '''Interface that backend implementations must provide.'''
+    '''Interface that backend modules must implement.'''
 
     def __init__(self, config):
         super(Backend, self).__init__(config)
@@ -33,37 +33,49 @@ class Backend(burrow.common.Module):
         separate threads and should never block.'''
         thread_pool.spawn_n(self._clean)
 
-    def delete_accounts(self, filters={}):
+    def delete_accounts(self, filters=None):
+        '''Delete accounts, which includes all queues and messages
+        for the accounts. With no filters, this will delete all data
+        for the entire server, so it should be used with caution.
+
+        :param filters: Optional dict of filters for the request. Valid
+        filters are 'marker', 'limit', and 'detail'. Valid values
+        for 'detail' are 'none', 'id', and 'all'. Default value for
+        'detail' is 'none'.
+        :returns: Generator which will loop through all messages if
+        'detail' is not 'none'.
+        '''
         return []
 
-    def get_accounts(self, filters={}):
+    def get_accounts(self, filters=None):
         return []
 
-    def delete_queues(self, account, filters={}):
+    def delete_queues(self, account, filters=None):
         return []
 
-    def get_queues(self, account, filters={}):
+    def get_queues(self, account, filters=None):
         return []
 
-    def delete_messages(self, account, queue, filters={}):
+    def delete_messages(self, account, queue, filters=None):
         return []
 
-    def get_messages(self, account, queue, filters={}):
+    def get_messages(self, account, queue, filters=None):
         return []
 
-    def update_messages(self, account, queue, attributes, filters={}):
+    def update_messages(self, account, queue, attributes, filters=None):
         return []
 
-    def create_message(self, account, queue, message, body, attributes={}):
+    def create_message(self, account, queue, message, body, attributes=None):
         return True
 
-    def delete_message(self, account, queue, message, filters={}):
+    def delete_message(self, account, queue, message, filters=None):
         return None
 
-    def get_message(self, account, queue, message, filters={}):
+    def get_message(self, account, queue, message, filters=None):
         return None
 
-    def update_message(self, account, queue, message, attributes, filters={}):
+    def update_message(self, account, queue, message, attributes,
+        filters=None):
         return None
 
     def clean(self):
@@ -79,16 +91,17 @@ class Backend(burrow.common.Module):
             eventlet.sleep(1)
 
     def _get_attributes(self, attributes, ttl=None, hide=None):
-        ttl = attributes.get('ttl', ttl)
+        if attributes is not None:
+            ttl = attributes.get('ttl', ttl)
+            hide = attributes.get('hide', hide)
         if ttl is not None and ttl > 0:
             ttl += int(time.time())
-        hide = attributes.get('hide', hide)
         if hide is not None and hide > 0:
             hide += int(time.time())
         return ttl, hide
 
     def _get_detail(self, filters, default=None):
-        detail = filters.get('detail', default)
+        detail = default if filters is None else filters.get('detail', default)
         if detail == 'none':
             detail = None
         elif detail is not None and detail not in ['id', 'all']:
@@ -96,7 +109,7 @@ class Backend(burrow.common.Module):
         return detail
 
     def _get_message_detail(self, filters, default=None):
-        detail = filters.get('detail', default)
+        detail = default if filters is None else filters.get('detail', default)
         options = ['id', 'attributes', 'body', 'all']
         if detail == 'none':
             detail = None
@@ -104,7 +117,7 @@ class Backend(burrow.common.Module):
             raise burrow.backend.InvalidArguments(detail)
         return detail
 
-    def _notify(self, account, queue):
+    def notify(self, account, queue):
         '''Notify any waiting callers that the account/queue has
         a visible message.'''
         queue = '%s/%s' % (account, queue)
@@ -112,28 +125,28 @@ class Backend(burrow.common.Module):
             for count in xrange(0, self.queues[queue].getting()):
                 self.queues[queue].put(0)
 
-    def _wait(self, account, queue, seconds):
+    def wait(self, account, queue, seconds):
         '''Wait for a message to appear in the account/queue.'''
         queue = '%s/%s' % (account, queue)
         if queue not in self.queues:
             self.queues[queue] = eventlet.Queue()
         try:
             self.queues[queue].get(timeout=seconds)
-        except Exception:
+        except eventlet.Queue.Empty:
             pass
         if self.queues[queue].getting() == 0:
             del self.queues[queue]
 
 
 def wait_without_attributes(method):
-    def wrapper(self, account, queue, filters={}):
+    def wrapper(self, account, queue, filters=None):
         original = lambda: method(self, account, queue, filters)
         return wait(self, account, queue, filters, original)
     return wrapper
 
 
 def wait_with_attributes(method):
-    def wrapper(self, account, queue, attributes, filters={}):
+    def wrapper(self, account, queue, attributes, filters=None):
         original = lambda: method(self, account, queue, attributes, filters)
         return wait(self, account, queue, filters, original)
     return wrapper
@@ -143,20 +156,20 @@ def wait(self, account, queue, filters, method):
     '''Decorator to wait on a queue if the wait option is given. This
     will block until a message in the queue is ready or the timeout
     expires.'''
-    wait = filters.get('wait', 0)
-    if wait > 0:
-        wait += time.time()
+    seconds = 0 if filters is None else filters.get('wait', 0)
+    if seconds > 0:
+        seconds += time.time()
     while True:
         try:
             for message in method():
                 yield message
             return
-        except burrow.backend.NotFound, e:
+        except burrow.backend.NotFound, exception:
             now = time.time()
-            if wait - now > 0:
-                self._wait(account, queue, wait - now)
-            if wait < time.time():
-                raise e
+            if seconds - now > 0:
+                self.wait(account, queue, seconds - now)
+            if seconds < time.time():
+                raise exception
 
 
 class NotFound(Exception):

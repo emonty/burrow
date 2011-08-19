@@ -60,8 +60,8 @@ class Backend(burrow.backend.Backend):
         for query in queries:
             self.db.execute(query)
 
-    def delete_accounts(self, filters={}):
-        if len(filters) == 0:
+    def delete_accounts(self, filters=None):
+        if filters is None or len(filters) == 0:
             query = 'SELECT rowid FROM accounts LIMIT 1'
             if len(self.db.execute(query).fetchall()) == 0:
                 raise burrow.backend.NotFound()
@@ -109,7 +109,7 @@ class Backend(burrow.backend.Backend):
             return dict(id=row[0])
         return None
 
-    def get_accounts(self, filters={}):
+    def get_accounts(self, filters=None):
         detail = self._get_detail(filters, 'id')
         query = 'SELECT account FROM accounts'
         for row in self._get_accounts(query, filters):
@@ -118,7 +118,12 @@ class Backend(burrow.backend.Backend):
 
     def _get_accounts(self, query, filters):
         values = tuple()
-        marker = filters.get('marker', None)
+        if filters is None:
+            marker = None
+            limit = None
+        else:
+            marker = filters.get('marker', None)
+            limit = filters.get('limit', None)
         if marker is not None:
             try:
                 marker = self._get_account(marker)
@@ -126,7 +131,6 @@ class Backend(burrow.backend.Backend):
                 values += (marker,)
             except burrow.backend.NotFound:
                 marker = None
-        limit = filters.get('limit', None)
         if limit is not None:
             query += ' LIMIT ?'
             values += (limit,)
@@ -144,7 +148,7 @@ class Backend(burrow.backend.Backend):
             raise burrow.backend.NotFound()
         return rows[0][0]
 
-    def delete_queues(self, account, filters={}):
+    def delete_queues(self, account, filters=None):
         account_rowid = self._get_account(account)
         detail = self._get_detail(filters)
         ids = []
@@ -174,7 +178,7 @@ class Backend(burrow.backend.Backend):
             query = 'DELETE FROM accounts WHERE rowid=?'
             self.db.execute(query, (account_rowid,))
 
-    def get_queues(self, account, filters={}):
+    def get_queues(self, account, filters=None):
         account_rowid = self._get_account(account)
         detail = self._get_detail(filters, 'id')
         query = 'SELECT queue FROM queues'
@@ -185,7 +189,12 @@ class Backend(burrow.backend.Backend):
     def _get_queues(self, query, account_rowid, filters):
         query += ' WHERE account=?'
         values = (account_rowid,)
-        marker = filters.get('marker', None)
+        if filters is None:
+            marker = None
+            limit = None
+        else:
+            marker = filters.get('marker', None)
+            limit = filters.get('limit', None)
         if marker is not None:
             try:
                 marker = self._get_queue(account_rowid, marker)
@@ -193,7 +202,6 @@ class Backend(burrow.backend.Backend):
                 values += (marker,)
             except burrow.backend.NotFound:
                 marker = None
-        limit = filters.get('limit', None)
         if limit is not None:
             query += ' LIMIT ?'
             values += (limit,)
@@ -212,7 +220,7 @@ class Backend(burrow.backend.Backend):
         return rows[0][0]
 
     @burrow.backend.wait_without_attributes
-    def delete_messages(self, account, queue, filters={}):
+    def delete_messages(self, account, queue, filters=None):
         account_rowid = self._get_account(account)
         queue_rowid = self._get_queue(account_rowid, queue)
         detail = self._get_message_detail(filters)
@@ -259,7 +267,7 @@ class Backend(burrow.backend.Backend):
         return None
 
     @burrow.backend.wait_without_attributes
-    def get_messages(self, account, queue, filters={}):
+    def get_messages(self, account, queue, filters=None):
         account_rowid = self._get_account(account)
         queue_rowid = self._get_queue(account_rowid, queue)
         detail = self._get_message_detail(filters, 'all')
@@ -271,7 +279,14 @@ class Backend(burrow.backend.Backend):
     def _get_messages(self, query, queue_rowid, filters):
         query += ' WHERE queue=?'
         values = (queue_rowid,)
-        marker = filters.get('marker', None)
+        if filters is None:
+            marker = None
+            limit = None
+            match_hidden = False
+        else:
+            marker = filters.get('marker', None)
+            limit = filters.get('limit', None)
+            match_hidden = filters.get('match_hidden', False)
         if marker is not None:
             try:
                 marker = self._get_message(queue_rowid, marker)
@@ -279,10 +294,8 @@ class Backend(burrow.backend.Backend):
                 values += (marker,)
             except burrow.backend.NotFound:
                 marker = None
-        match_hidden = filters.get('match_hidden', False)
         if match_hidden is False:
             query += ' AND hide=0'
-        limit = filters.get('limit', None)
         if limit is not None:
             query += ' LIMIT ?'
             values += (limit,)
@@ -307,7 +320,7 @@ class Backend(burrow.backend.Backend):
         return rows[0][0]
 
     @burrow.backend.wait_with_attributes
-    def update_messages(self, account, queue, attributes, filters={}):
+    def update_messages(self, account, queue, attributes, filters=None):
         account_rowid = self._get_account(account)
         queue_rowid = self._get_queue(account_rowid, queue)
         detail = self._get_message_detail(filters)
@@ -332,7 +345,7 @@ class Backend(burrow.backend.Backend):
             if self._update_messages(ttl, hide, ids):
                 notify = True
         if notify:
-            self._notify(account, queue)
+            self.notify(account, queue)
 
     def _update_messages(self, ttl, hide, ids):
         query = 'UPDATE messages SET '
@@ -352,7 +365,7 @@ class Backend(burrow.backend.Backend):
         self.db.execute(query + query_values, tuple(values + ids))
         return True
 
-    def create_message(self, account, queue, message, body, attributes={}):
+    def create_message(self, account, queue, message, body, attributes=None):
         ttl, hide = self._get_attributes(attributes, ttl=0, hide=0)
         try:
             account_rowid = self._get_account(account)
@@ -375,10 +388,10 @@ class Backend(burrow.backend.Backend):
             self.db.execute(query, (queue_rowid, message, ttl, hide, body))
             created = True
         if created or hide == 0:
-            self._notify(account, queue)
+            self.notify(account, queue)
         return created
 
-    def delete_message(self, account, queue, message, filters={}):
+    def delete_message(self, account, queue, message, filters=None):
         account_rowid = self._get_account(account)
         queue_rowid = self._get_queue(account_rowid, queue)
         row = self._get_message(queue_rowid, message, True)
@@ -387,19 +400,20 @@ class Backend(burrow.backend.Backend):
         self._check_empty_queue(account_rowid, queue_rowid)
         return self._message_detail(row[1:], detail)
 
-    def get_message(self, account, queue, message, filters={}):
+    def get_message(self, account, queue, message, filters=None):
         queue_rowid = self._get_queue(self._get_account(account), queue)
         row = self._get_message(queue_rowid, message, True)
         detail = self._get_message_detail(filters, 'all')
         return self._message_detail(row[1:], detail)
 
-    def update_message(self, account, queue, message, attributes, filters={}):
+    def update_message(self, account, queue, message, attributes,
+        filters=None):
         queue_rowid = self._get_queue(self._get_account(account), queue)
         row = self._get_message(queue_rowid, message, True)
         detail = self._get_message_detail(filters)
         ttl, hide = self._get_attributes(attributes)
         if self._update_messages(ttl, hide, [row[0]]):
-            self._notify(account, queue)
+            self.notify(account, queue)
         row = list(row)
         if ttl is not None:
             row[2] = ttl
@@ -447,4 +461,4 @@ class Backend(burrow.backend.Backend):
                 'ON queues.account=accounts.rowid ' \
                 'WHERE queues.rowid=?'
             result = self.db.execute(query, (queue,)).fetchall()[0]
-            self._notify(result[0], result[1])
+            self.notify(result[0], result[1])

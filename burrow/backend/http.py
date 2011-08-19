@@ -41,38 +41,38 @@ class Backend(burrow.backend.Backend):
         port = self.config.getint('port', DEFAULT_PORT)
         self.server = (host, port)
 
-    def delete_accounts(self, filters={}):
+    def delete_accounts(self, filters=None):
         url = self._add_parameters('', filters=filters)
         return self._request('DELETE', url)
 
-    def get_accounts(self, filters={}):
+    def get_accounts(self, filters=None):
         url = self._add_parameters('', filters=filters)
         return self._request('GET', url)
 
-    def delete_queues(self, account, filters={}):
+    def delete_queues(self, account, filters=None):
         url = self._add_parameters('/%s' % account, filters=filters)
         return self._request('DELETE', url)
 
-    def get_queues(self, account, filters={}):
+    def get_queues(self, account, filters=None):
         url = self._add_parameters('/%s' % account, filters=filters)
         return self._request('GET', url)
 
-    def delete_messages(self, account, queue, filters={}):
+    def delete_messages(self, account, queue, filters=None):
         url = '/%s/%s' % (account, queue)
         url = self._add_parameters(url, filters=filters)
         return self._request('DELETE', url)
 
-    def get_messages(self, account, queue, filters={}):
+    def get_messages(self, account, queue, filters=None):
         url = '/%s/%s' % (account, queue)
         url = self._add_parameters(url, filters=filters)
         return self._request('GET', url)
 
-    def update_messages(self, account, queue, attributes, filters={}):
+    def update_messages(self, account, queue, attributes, filters=None):
         url = '/%s/%s' % (account, queue)
         url = self._add_parameters(url, attributes, filters)
         return self._request('POST', url)
 
-    def create_message(self, account, queue, message, body, attributes={}):
+    def create_message(self, account, queue, message, body, attributes=None):
         url = '/%s/%s/%s' % (account, queue, message)
         url = self._add_parameters(url, attributes)
         try:
@@ -80,7 +80,7 @@ class Backend(burrow.backend.Backend):
         except StopIteration:
             return False
 
-    def delete_message(self, account, queue, message, filters={}):
+    def delete_message(self, account, queue, message, filters=None):
         url = '/%s/%s/%s' % (account, queue, message)
         url = self._add_parameters(url, filters=filters)
         try:
@@ -88,7 +88,7 @@ class Backend(burrow.backend.Backend):
         except StopIteration:
             return None
 
-    def get_message(self, account, queue, message, filters={}):
+    def get_message(self, account, queue, message, filters=None):
         url = '/%s/%s/%s' % (account, queue, message)
         url = self._add_parameters(url, filters=filters)
         try:
@@ -96,7 +96,8 @@ class Backend(burrow.backend.Backend):
         except StopIteration:
             return None
 
-    def update_message(self, account, queue, message, attributes, filters={}):
+    def update_message(self, account, queue, message, attributes,
+        filters=None):
         url = '/%s/%s/%s' % (account, queue, message)
         url = self._add_parameters(url, attributes, filters)
         try:
@@ -107,18 +108,22 @@ class Backend(burrow.backend.Backend):
     def clean(self):
         pass
 
-    def _add_parameters(self, url, attributes={}, filters={}):
+    def _add_parameters(self, url, attributes=None, filters=None):
         separator = '?'
-        for attribute in ['ttl', 'hide']:
-            value = attributes.get(attribute, None)
-            if value is not None:
-                url += '%s%s=%s' % (separator, attribute, value)
-                separator = '&'
-        for filter in ['marker', 'limit', 'match_hidden', 'detail', 'wait']:
-            value = filters.get(filter, None)
-            if value is not None:
-                url += '%s%s=%s' % (separator, filter, value)
-                separator = '&'
+        if attributes is not None:
+            parameters = ['ttl', 'hide']
+            for parameter in parameters:
+                value = attributes.get(parameter, None)
+                if value is not None:
+                    url += '%s%s=%s' % (separator, parameter, value)
+                    separator = '&'
+        if filters is not None:
+            parameters = ['marker', 'limit', 'match_hidden', 'detail', 'wait']
+            for parameter in parameters:
+                value = filters.get(parameter, None)
+                if value is not None:
+                    url += '%s%s=%s' % (separator, parameter, value)
+                    separator = '&'
         return url
 
     def _request(self, method, url, *args, **kwargs):

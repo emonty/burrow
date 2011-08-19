@@ -31,8 +31,8 @@ class Backend(burrow.backend.Backend):
         super(Backend, self).__init__(config)
         self.accounts = Accounts()
 
-    def delete_accounts(self, filters={}):
-        if len(filters) == 0:
+    def delete_accounts(self, filters=None):
+        if filters is None or len(filters) == 0:
             self.accounts.reset()
             return
         detail = self._get_detail(filters)
@@ -41,15 +41,15 @@ class Backend(burrow.backend.Backend):
             if detail is not None:
                 yield account.detail(detail)
 
-    def get_accounts(self, filters={}):
+    def get_accounts(self, filters=None):
         detail = self._get_detail(filters, 'id')
         for account in self.accounts.iter(filters):
             if detail is not None:
                 yield account.detail(detail)
 
-    def delete_queues(self, account, filters={}):
+    def delete_queues(self, account, filters=None):
         account = self.accounts.get(account)
-        if len(filters) == 0:
+        if filters is None or len(filters) == 0:
             account.queues.reset()
         else:
             detail = self._get_detail(filters)
@@ -60,7 +60,7 @@ class Backend(burrow.backend.Backend):
         if account.queues.count() == 0:
             self.accounts.delete(account.id)
 
-    def get_queues(self, account, filters={}):
+    def get_queues(self, account, filters=None):
         account = self.accounts.get(account)
         detail = self._get_detail(filters, 'id')
         for queue in account.queues.iter(filters):
@@ -68,7 +68,7 @@ class Backend(burrow.backend.Backend):
                 yield queue.detail(detail)
 
     @burrow.backend.wait_without_attributes
-    def delete_messages(self, account, queue, filters={}):
+    def delete_messages(self, account, queue, filters=None):
         account, queue = self.accounts.get_queue(account, queue)
         detail = self._get_message_detail(filters)
         for message in queue.messages.iter(filters):
@@ -79,7 +79,7 @@ class Backend(burrow.backend.Backend):
             self.accounts.delete_queue(account.id, queue.id)
 
     @burrow.backend.wait_without_attributes
-    def get_messages(self, account, queue, filters={}):
+    def get_messages(self, account, queue, filters=None):
         account, queue = self.accounts.get_queue(account, queue)
         detail = self._get_message_detail(filters, 'all')
         for message in queue.messages.iter(filters):
@@ -87,7 +87,7 @@ class Backend(burrow.backend.Backend):
                 yield message.detail(detail)
 
     @burrow.backend.wait_with_attributes
-    def update_messages(self, account, queue, attributes, filters={}):
+    def update_messages(self, account, queue, attributes, filters=None):
         account, queue = self.accounts.get_queue(account, queue)
         notify = False
         ttl, hide = self._get_attributes(attributes)
@@ -102,9 +102,9 @@ class Backend(burrow.backend.Backend):
             if detail is not None:
                 yield message.detail(detail)
         if notify:
-            self._notify(account.id, queue.id)
+            self.notify(account.id, queue.id)
 
-    def create_message(self, account, queue, message, body, attributes={}):
+    def create_message(self, account, queue, message, body, attributes=None):
         account, queue = self.accounts.get_queue(account, queue, True)
         ttl, hide = self._get_attributes(attributes, ttl=0, hide=0)
         try:
@@ -117,10 +117,10 @@ class Backend(burrow.backend.Backend):
         message.hide = hide
         message.body = body
         if created or hide == 0:
-            self._notify(account.id, queue.id)
+            self.notify(account.id, queue.id)
         return created
 
-    def delete_message(self, account, queue, message, filters={}):
+    def delete_message(self, account, queue, message, filters=None):
         account, queue = self.accounts.get_queue(account, queue)
         message = queue.messages.get(message)
         detail = self._get_message_detail(filters)
@@ -129,13 +129,14 @@ class Backend(burrow.backend.Backend):
             self.accounts.delete_queue(account.id, queue.id)
         return message.detail(detail)
 
-    def get_message(self, account, queue, message, filters={}):
+    def get_message(self, account, queue, message, filters=None):
         account, queue = self.accounts.get_queue(account, queue)
         message = queue.messages.get(message)
         detail = self._get_message_detail(filters, 'all')
         return message.detail(detail)
 
-    def update_message(self, account, queue, message, attributes, filters={}):
+    def update_message(self, account, queue, message, attributes,
+        filters=None):
         account, queue = self.accounts.get_queue(account, queue)
         message = queue.messages.get(message)
         ttl, hide = self._get_attributes(attributes)
@@ -145,7 +146,7 @@ class Backend(burrow.backend.Backend):
         if hide is not None:
             message.hide = hide
             if hide == 0:
-                self._notify(account.id, queue.id)
+                self.notify(account.id, queue.id)
         return message.detail(detail)
 
     def clean(self):
@@ -160,7 +161,7 @@ class Backend(burrow.backend.Backend):
                         message.hide = 0
                         notify = True
                 if notify:
-                    self._notify(account.id, queue.id)
+                    self.notify(account.id, queue.id)
                 if queue.messages.count() == 0:
                     self.accounts.delete_queue(account.id, queue.id)
 
@@ -183,6 +184,8 @@ class Item(object):
 
 class IndexedList(object):
     '''Class for managing an indexed linked list.'''
+
+    item_class = Item
 
     def __init__(self):
         self.first = None
@@ -220,15 +223,19 @@ class IndexedList(object):
             return self.add(self.item_class(id))
         raise burrow.backend.NotFound()
 
-    def iter(self, filters={}):
-        marker = filters.get('marker', None)
+    def iter(self, filters=None):
+        if filters is None:
+            marker = None
+            limit = None
+        else:
+            marker = filters.get('marker', None)
+            limit = filters.get('limit', None)
         if marker is not None and marker in self.index:
             item = self.index[marker].next
         else:
             item = self.first
         if item is None:
             raise burrow.backend.NotFound()
-        limit = filters.get('limit', None)
         while item is not None:
             yield item
             if limit:
@@ -315,14 +322,19 @@ class Messages(IndexedList):
 
     item_class = Message
 
-    def iter(self, filters={}):
-        marker = filters.get('marker', None)
+    def iter(self, filters=None):
+        if filters is None:
+            marker = None
+            limit = None
+            match_hidden = False
+        else:
+            marker = filters.get('marker', None)
+            limit = filters.get('limit', None)
+            match_hidden = filters.get('match_hidden', False)
         if marker is not None and marker in self.index:
             item = self.index[marker].next
         else:
             item = self.first
-        limit = filters.get('limit', None)
-        match_hidden = filters.get('match_hidden', False)
         count = 0
         while item is not None:
             if match_hidden or item.hide == 0:
