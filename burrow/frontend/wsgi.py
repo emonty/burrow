@@ -101,7 +101,7 @@ class Frontend(burrow.frontend.Frontend):
             args['attributes'] = self._parse_attributes(req)
         method = getattr(self.backend, '%s_%s' % (method, action), None)
         if method is None:
-            return self._response(status=400)
+            return self._response(status=405)
         args['filters'] = self._parse_filters(req)
         return self._response(body=lambda: method(**args))
 
