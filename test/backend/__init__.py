@@ -41,12 +41,12 @@ class Base(unittest.TestCase):
         '''Ensure the backend is empty before, used before and after
         each test.'''
         accounts = self.backend.get_accounts()
-        self.assertRaises(burrow.backend.NotFound, list, accounts)
+        self.assertRaises(burrow.NotFound, list, accounts)
         queues = self.backend.get_queues('a')
-        self.assertRaises(burrow.backend.NotFound, list, queues)
+        self.assertRaises(burrow.NotFound, list, queues)
         filters = dict(match_hidden=True)
         messages = self.backend.get_messages('a', 'q', filters)
-        self.assertRaises(burrow.backend.NotFound, list, messages)
+        self.assertRaises(burrow.NotFound, list, messages)
 
     def delete_messages(self):
         '''Delete messages, including those that are hidden. Use
@@ -73,7 +73,7 @@ class TestAccounts(Base):
         self.assertEquals(['a'], list(self.backend.get_accounts()))
         self.assertEquals([], list(self.backend.delete_accounts()))
         accounts = self.backend.delete_accounts()
-        self.assertRaises(burrow.backend.NotFound, list, accounts)
+        self.assertRaises(burrow.NotFound, list, accounts)
 
     def test_large(self):
         for name in xrange(0, 1000):
@@ -104,7 +104,7 @@ class TestAccounts(Base):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         accounts = self.backend.delete_accounts(filters)
-        self.assertRaises(burrow.backend.InvalidArguments, list, accounts)
+        self.assertRaises(burrow.InvalidArguments, list, accounts)
         self.assertEquals([], list(self.backend.delete_accounts()))
 
     def test_delete_marker(self):
@@ -174,7 +174,7 @@ class TestAccounts(Base):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         accounts = self.backend.get_accounts(filters)
-        self.assertRaises(burrow.backend.InvalidArguments, list, accounts)
+        self.assertRaises(burrow.InvalidArguments, list, accounts)
         self.assertEquals([], list(self.backend.delete_accounts()))
 
     def test_get_marker(self):
@@ -191,7 +191,7 @@ class TestAccounts(Base):
         self.assertEquals(accounts[2:], accounts2)
         filters = dict(marker=accounts[2])
         accounts2 = self.backend.get_accounts(filters)
-        self.assertRaises(burrow.backend.NotFound, list, accounts2)
+        self.assertRaises(burrow.NotFound, list, accounts2)
         filters = dict(marker='unknown')
         accounts2 = list(self.backend.get_accounts(filters))
         self.assertEquals(accounts, accounts2)
@@ -240,7 +240,7 @@ class TestQueues(Base):
         self.assertEquals(['q'], list(self.backend.get_queues('a')))
         self.assertEquals([], list(self.backend.delete_queues('a')))
         queues = self.backend.delete_queues('a')
-        self.assertRaises(burrow.backend.NotFound, list, queues)
+        self.assertRaises(burrow.NotFound, list, queues)
 
     def test_large(self):
         for name in xrange(0, 1000):
@@ -271,7 +271,7 @@ class TestQueues(Base):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         queues = self.backend.delete_queues('a', filters)
-        self.assertRaises(burrow.backend.InvalidArguments, list, queues)
+        self.assertRaises(burrow.InvalidArguments, list, queues)
         self.assertEquals([], list(self.backend.delete_queues('a')))
 
     def test_delete_marker(self):
@@ -341,7 +341,7 @@ class TestQueues(Base):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         queues = self.backend.get_queues('a', filters)
-        self.assertRaises(burrow.backend.InvalidArguments, list, queues)
+        self.assertRaises(burrow.InvalidArguments, list, queues)
         self.assertEquals([], list(self.backend.delete_queues('a')))
 
     def test_get_marker(self):
@@ -358,7 +358,7 @@ class TestQueues(Base):
         self.assertEquals(queues[2:], queues2)
         filters = dict(marker=queues[2])
         queues2 = self.backend.get_queues('a', filters)
-        self.assertRaises(burrow.backend.NotFound, list, queues2)
+        self.assertRaises(burrow.NotFound, list, queues2)
         filters = dict(marker='unknown')
         queues2 = list(self.backend.get_queues('a', filters))
         self.assertEquals(queues, queues2)
@@ -418,9 +418,9 @@ class TestMessages(Base):
         self.assertEquals([], list(messages))
         self.delete_messages()
         messages = self.backend.delete_messages('a', 'q')
-        self.assertRaises(burrow.backend.NotFound, list, messages)
+        self.assertRaises(burrow.NotFound, list, messages)
         messages = self.backend.update_messages('a', 'q', attributes)
-        self.assertRaises(burrow.backend.NotFound, list, messages)
+        self.assertRaises(burrow.NotFound, list, messages)
 
     def test_large(self):
         for name in xrange(0, 1000):
@@ -467,7 +467,7 @@ class TestMessages(Base):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         messages = self.backend.delete_messages('a', 'q', filters)
-        self.assertRaises(burrow.backend.InvalidArguments, list, messages)
+        self.assertRaises(burrow.InvalidArguments, list, messages)
         self.assertEquals([], list(self.backend.delete_messages('a', 'q')))
 
     def test_delete_marker(self):
@@ -553,7 +553,7 @@ class TestMessages(Base):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
         messages = self.backend.get_messages('a', 'q', filters)
-        self.assertRaises(burrow.backend.InvalidArguments, list, messages)
+        self.assertRaises(burrow.InvalidArguments, list, messages)
         self.delete_messages()
 
     def test_get_marker(self):
@@ -570,7 +570,7 @@ class TestMessages(Base):
         self.assertEquals(messages[2:], messages2)
         filters = dict(marker=messages[2]['id'])
         messages2 = self.backend.get_messages('a', 'q', filters)
-        self.assertRaises(burrow.backend.NotFound, list, messages2)
+        self.assertRaises(burrow.NotFound, list, messages2)
         filters = dict(marker='unknown')
         messages2 = list(self.backend.get_messages('a', 'q', filters))
         self.assertEquals(messages, messages2)
@@ -657,7 +657,7 @@ class TestMessages(Base):
         attributes = dict(ttl=100, hide=200)
         filters = dict(detail='bad')
         messages = self.backend.update_messages('a', 'q', attributes, filters)
-        self.assertRaises(burrow.backend.InvalidArguments, list, messages)
+        self.assertRaises(burrow.InvalidArguments, list, messages)
         self.delete_messages()
 
     def test_update_marker(self):
@@ -677,7 +677,7 @@ class TestMessages(Base):
         self.assertEquals(messages[2:], list(messages2))
         filters.update(marker=messages[2]['id'])
         messages2 = self.backend.update_messages('a', 'q', attributes, filters)
-        self.assertRaises(burrow.backend.NotFound, list, messages2)
+        self.assertRaises(burrow.NotFound, list, messages2)
         filters = dict(detail='all', marker='unknown', match_hidden=True)
         messages2 = self.backend.update_messages('a', 'q', attributes, filters)
         self.assertEquals(messages, list(messages2))
@@ -807,7 +807,7 @@ class TestMessage(Base):
     def test_delete_detail_bad(self):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
-        self.assertRaises(burrow.backend.InvalidArguments,
+        self.assertRaises(burrow.InvalidArguments,
             self.backend.delete_message, 'a', 'q', 'm', filters)
         self.delete_messages()
 
@@ -849,7 +849,7 @@ class TestMessage(Base):
     def test_get_detail_bad(self):
         self.backend.create_message('a', 'q', 'm', 'test')
         filters = dict(detail='bad')
-        self.assertRaises(burrow.backend.InvalidArguments,
+        self.assertRaises(burrow.InvalidArguments,
             self.backend.get_message, 'a', 'q', 'm', filters)
         self.delete_messages()
 
@@ -903,7 +903,7 @@ class TestMessage(Base):
         self.backend.create_message('a', 'q', 'm', 'test')
         attributes = dict(ttl=100, hide=200)
         filters = dict(detail='bad')
-        self.assertRaises(burrow.backend.InvalidArguments,
+        self.assertRaises(burrow.InvalidArguments,
             self.backend.update_message, 'a', 'q', 'm', attributes, filters)
         self.delete_messages()
 

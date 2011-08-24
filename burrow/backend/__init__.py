@@ -228,7 +228,7 @@ class Backend(burrow.common.Module):
         if detail == 'none':
             detail = None
         elif detail is not None and detail not in ['id', 'all']:
-            raise burrow.backend.InvalidArguments(detail)
+            raise burrow.InvalidArguments(detail)
         return detail
 
     def _get_message_detail(self, filters, default=None):
@@ -239,7 +239,7 @@ class Backend(burrow.common.Module):
         if detail == 'none':
             detail = None
         elif detail is not None and detail not in options:
-            raise burrow.backend.InvalidArguments(detail)
+            raise burrow.InvalidArguments(detail)
         return detail
 
     def notify(self, account, queue):
@@ -293,20 +293,9 @@ def wait(self, account, queue, filters, method):
             for message in method():
                 yield message
             return
-        except burrow.backend.NotFound, exception:
+        except burrow.NotFound, exception:
             now = time.time()
             if seconds - now > 0:
                 self.wait(account, queue, seconds - now)
             if seconds < time.time():
                 raise exception
-
-
-class NotFound(Exception):
-    '''Raised when an account, queue, or message can not be found.'''
-    pass
-
-
-class InvalidArguments(Exception):
-    '''Raised when the given arguments are invalid, usually from attributes
-    or filters.'''
-    pass

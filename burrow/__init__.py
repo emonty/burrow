@@ -19,10 +19,20 @@ import gettext
 
 from burrow.client import Client, Account, Queue
 from burrow.server import Server
-from burrow.backend import NotFound, InvalidArguments
 
 __version__ = '2011.2'
 
 # This installs the _(...) function as a built-in so all other modules
 # don't need to.
 gettext.install('burrow')
+
+
+class NotFound(Exception):
+    '''Raised when an account, queue, or message can not be found.'''
+    pass
+
+
+class InvalidArguments(Exception):
+    '''Raised when the given arguments are invalid, usually from attributes
+    or filters.'''
+    pass

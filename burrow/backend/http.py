@@ -149,7 +149,7 @@ class Backend(burrow.backend.Backend):
         if body == '':
             body = response.reason
         if response.status == 400:
-            raise burrow.backend.InvalidArguments(body)
+            raise burrow.InvalidArguments(body)
         if response.status == 404:
-            raise burrow.backend.NotFound(body)
+            raise burrow.NotFound(body)
         raise Exception(response.reason)
