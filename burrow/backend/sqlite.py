@@ -66,7 +66,7 @@ class Backend(burrow.backend.Backend):
         if filters is None or len(filters) == 0:
             query = 'SELECT rowid FROM accounts LIMIT 1'
             if len(self.db.execute(query).fetchall()) == 0:
-                raise burrow.backend.NotFound()
+                raise burrow.NotFound('Account not found')
             self.db.execute('DELETE FROM accounts')
             self.db.execute('DELETE FROM queues')
             self.db.execute('DELETE FROM messages')
@@ -136,7 +136,7 @@ class Backend(burrow.backend.Backend):
                 marker = self._get_account(marker)
                 query += ' WHERE rowid > ?'
                 values += (marker,)
-            except burrow.backend.NotFound:
+            except burrow.NotFound:
                 marker = None
         if limit is not None:
             query += ' LIMIT ?'
@@ -146,14 +146,14 @@ class Backend(burrow.backend.Backend):
             count += 1
             yield row
         if count == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.NotFound('Account not found')
 
     def _get_account(self, account):
         '''Get the rowid for a given account ID.'''
         query = 'SELECT rowid FROM accounts WHERE account=?'
         rows = self.db.execute(query, (account,)).fetchall()
         if len(rows) == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.NotFound('Account not found')
         return rows[0][0]
 
     def delete_queues(self, account, filters=None):
@@ -213,7 +213,7 @@ class Backend(burrow.backend.Backend):
                 marker = self._get_queue(account_rowid, marker)
                 query += ' AND rowid > ?'
                 values += (marker,)
-            except burrow.backend.NotFound:
+            except burrow.NotFound:
                 marker = None
         if limit is not None:
             query += ' LIMIT ?'
@@ -223,14 +223,14 @@ class Backend(burrow.backend.Backend):
             count += 1
             yield row
         if count == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.NotFound('Queue not found')
 
     def _get_queue(self, account_rowid, queue):
         '''Get the rowid for a given queue ID.'''
         query = 'SELECT rowid FROM queues WHERE account=? AND queue=?'
         rows = self.db.execute(query, (account_rowid, queue)).fetchall()
         if len(rows) == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.NotFound('Queue not found')
         return rows[0][0]
 
     @burrow.backend.wait_without_attributes
@@ -311,7 +311,7 @@ class Backend(burrow.backend.Backend):
                 marker = self._get_message(queue_rowid, marker)
                 query += ' AND rowid > ?'
                 values += (marker,)
-            except burrow.backend.NotFound:
+            except burrow.NotFound:
                 marker = None
         if match_hidden is False:
             query += ' AND hide=0'
@@ -323,7 +323,7 @@ class Backend(burrow.backend.Backend):
             count += 1
             yield row
         if count == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.NotFound('Message not found')
 
     def _get_message(self, queue_rowid, message, full=False):
         '''Get the rowid for a given message ID.'''
@@ -334,7 +334,7 @@ class Backend(burrow.backend.Backend):
         query += ' FROM messages WHERE queue=? AND message=?'
         rows = self.db.execute(query, (queue_rowid, message)).fetchall()
         if len(rows) == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.NotFound('Message not found')
         if full:
             return rows[0]
         return rows[0][0]
@@ -390,12 +390,12 @@ class Backend(burrow.backend.Backend):
         ttl, hide = self._get_attributes(attributes, ttl=0, hide=0)
         try:
             account_rowid = self._get_account(account)
-        except burrow.backend.NotFound:
+        except burrow.NotFound:
             query = 'INSERT INTO accounts VALUES (?)'
             account_rowid = self.db.execute(query, (account,)).lastrowid
         try:
             queue_rowid = self._get_queue(account_rowid, queue)
-        except burrow.backend.NotFound:
+        except burrow.NotFound:
             query = 'INSERT INTO queues VALUES (?,?)'
             values = (account_rowid, queue)
             queue_rowid = self.db.execute(query, values).lastrowid
@@ -404,7 +404,7 @@ class Backend(burrow.backend.Backend):
             query = 'UPDATE messages SET ttl=?,hide=?,body=? WHERE rowid=?'
             self.db.execute(query, (ttl, hide, body, message_rowid))
             created = False
-        except burrow.backend.NotFound:
+        except burrow.NotFound:
             query = 'INSERT INTO messages VALUES (?,?,?,?,?)'
             self.db.execute(query, (queue_rowid, message, ttl, hide, body))
             created = True

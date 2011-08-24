@@ -112,7 +112,10 @@ class Shell(object):
         '''Run the command given in arguments or enter an interactive shell.'''
         if len(self.args) == 0:
             for command in self._get_command():
-                self.run_command(command[0], command[1:])
+                try:
+                    self.run_command(command[0], command[1:])
+                except burrow.NotFound, exception:
+                    print exception
         else:
             self.run_command(self.args[0], self.args[1:])
 
@@ -131,6 +134,8 @@ class Shell(object):
         while True:
             try:
                 command = raw_input(prompt)
+            except KeyboardInterrupt:
+                break
             except EOFError:
                 if os.isatty(sys.stdin.fileno()):
                     print
@@ -164,11 +169,7 @@ class Shell(object):
             args.append(self._pack_attributes())
         if section.get('filters', None):
             args.append(self._pack_filters())
-        try:
-            result = getattr(self.client, command)(*args)
-        except Exception, exception:
-            print exception
-            return
+        result = getattr(self.client, command)(*args)
         self._print_result(result)
 
     def _get_section(self, command):

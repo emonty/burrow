@@ -21,7 +21,6 @@ import eventlet.wsgi
 import routes.middleware
 import webob.dec
 
-import burrow.backend
 import burrow.frontend
 
 # Default configuration values for this module.
@@ -101,7 +100,7 @@ class Frontend(burrow.frontend.Frontend):
             args['attributes'] = self._parse_attributes(req)
         method = getattr(self.backend, '%s_%s' % (method, action), None)
         if method is None:
-            return self._response(status=400)
+            return self._response(status=405)
         args['filters'] = self._parse_filters(req)
         return self._response(body=lambda: method(**args))
 
@@ -187,12 +186,12 @@ class Frontend(burrow.frontend.Frontend):
                 body = body()
             if isinstance(body, types.GeneratorType):
                 body = list(body)
-        except burrow.backend.InvalidArguments:
+        except burrow.InvalidArguments, exception:
             status = 400
-            body = None
-        except burrow.backend.NotFound:
+            body = exception.message
+        except burrow.NotFound, exception:
             status = 404
-            body = None
+            body = exception.message
         if body == []:
             body = None
         return status, body
