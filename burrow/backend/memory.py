@@ -175,6 +175,7 @@ class Item(object):
         self.prev = None
 
     def detail(self, detail):
+        '''Format detail response for this item.'''
         if detail == 'id':
             return self.id
         elif detail == 'all':
@@ -193,6 +194,7 @@ class IndexedList(object):
         self.index = {}
 
     def add(self, item):
+        '''Add a new item to the list.'''
         if self.first is None:
             self.first = item
         if self.last is not None:
@@ -203,9 +205,11 @@ class IndexedList(object):
         return item
 
     def count(self):
+        '''Return a count of the number of items in the list.'''
         return len(self.index)
 
     def delete(self, id):
+        '''Delete an item from the list by id.'''
         item = self.index.pop(id)
         if item.next is not None:
             item.next.prev = item.prev
@@ -217,6 +221,7 @@ class IndexedList(object):
             self.last = item.prev
 
     def get(self, id, create=False):
+        '''Get an item from the list by id.'''
         if id in self.index:
             return self.index[id]
         elif create:
@@ -224,6 +229,7 @@ class IndexedList(object):
         raise burrow.backend.NotFound()
 
     def iter(self, filters=None):
+        '''Iterate through all items in the list, possibly filtered.'''
         if filters is None:
             marker = None
             limit = None
@@ -245,6 +251,7 @@ class IndexedList(object):
             item = item.next
 
     def reset(self):
+        '''Remove all items in the list.'''
         if self.count() == 0:
             raise burrow.backend.NotFound()
         self.first = None
@@ -253,6 +260,7 @@ class IndexedList(object):
 
 
 class Account(Item):
+    '''A type of item representing an account.'''
 
     def __init__(self, id=None):
         super(Account, self).__init__(id)
@@ -260,10 +268,12 @@ class Account(Item):
 
 
 class Accounts(IndexedList):
+    '''A type of list representing an account list.'''
 
     item_class = Account
 
     def delete_queue(self, account, queue):
+        '''Delete a queue within the given account.'''
         account = self.get(account)
         if account is not None:
             account.queues.delete(queue)
@@ -271,6 +281,7 @@ class Accounts(IndexedList):
                 self.delete(account.id)
 
     def get_queue(self, account, queue, create=False):
+        '''Get a queue within the given the account.'''
         if account in self.index:
             account = self.index[account]
         elif create:
@@ -281,6 +292,7 @@ class Accounts(IndexedList):
 
 
 class Queue(Item):
+    '''A type of item representing a queue.'''
 
     def __init__(self, id=None):
         super(Queue, self).__init__(id)
@@ -288,11 +300,13 @@ class Queue(Item):
 
 
 class Queues(IndexedList):
+    '''A type of list representing a queue list.'''
 
     item_class = Queue
 
 
 class Message(Item):
+    '''A type of item representing a message.'''
 
     def __init__(self, id=None):
         super(Message, self).__init__(id)
@@ -319,6 +333,7 @@ class Message(Item):
 
 
 class Messages(IndexedList):
+    '''A type of list representing a message list.'''
 
     item_class = Message
 
