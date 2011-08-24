@@ -226,7 +226,7 @@ class IndexedList(object):
             return self.index[id]
         elif create:
             return self.add(self.item_class(id))
-        raise burrow.backend.NotFound()
+        raise burrow.backend.NotFound(self.item_class.__name__ + " not found")
 
     def iter(self, filters=None):
         '''Iterate through all items in the list, possibly filtered.'''
@@ -241,7 +241,8 @@ class IndexedList(object):
         else:
             item = self.first
         if item is None:
-            raise burrow.backend.NotFound()
+            raise burrow.backend.NotFound(self.item_class.__name__ +
+                " not found")
         while item is not None:
             yield item
             if limit:
@@ -253,7 +254,8 @@ class IndexedList(object):
     def reset(self):
         '''Remove all items in the list.'''
         if self.count() == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.backend.NotFound(self.item_class.__name__ +
+                " not found")
         self.first = None
         self.last = None
         self.index.clear()
@@ -287,7 +289,7 @@ class Accounts(IndexedList):
         elif create:
             account = self.add(Account(account))
         else:
-            raise burrow.backend.NotFound()
+            raise burrow.backend.NotFound('Account not found')
         return account, account.queues.get(queue, create)
 
 
@@ -361,4 +363,4 @@ class Messages(IndexedList):
                         break
             item = item.next
         if count == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.backend.NotFound('Message not found')

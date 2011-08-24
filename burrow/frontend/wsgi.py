@@ -187,12 +187,12 @@ class Frontend(burrow.frontend.Frontend):
                 body = body()
             if isinstance(body, types.GeneratorType):
                 body = list(body)
-        except burrow.backend.InvalidArguments:
+        except burrow.backend.InvalidArguments, exception:
             status = 400
-            body = None
-        except burrow.backend.NotFound:
+            body = exception.message
+        except burrow.backend.NotFound, exception:
             status = 404
-            body = None
+            body = exception.message
         if body == []:
             body = None
         return status, body

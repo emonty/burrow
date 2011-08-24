@@ -19,6 +19,7 @@ import gettext
 
 from burrow.client import Client, Account, Queue
 from burrow.server import Server
+from burrow.backend import NotFound, InvalidArguments
 
 __version__ = '2011.2'
 

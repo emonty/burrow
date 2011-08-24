@@ -66,7 +66,7 @@ class Backend(burrow.backend.Backend):
         if filters is None or len(filters) == 0:
             query = 'SELECT rowid FROM accounts LIMIT 1'
             if len(self.db.execute(query).fetchall()) == 0:
-                raise burrow.backend.NotFound()
+                raise burrow.backend.NotFound('Account not found')
             self.db.execute('DELETE FROM accounts')
             self.db.execute('DELETE FROM queues')
             self.db.execute('DELETE FROM messages')
@@ -146,14 +146,14 @@ class Backend(burrow.backend.Backend):
             count += 1
             yield row
         if count == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.backend.NotFound('Account not found')
 
     def _get_account(self, account):
         '''Get the rowid for a given account ID.'''
         query = 'SELECT rowid FROM accounts WHERE account=?'
         rows = self.db.execute(query, (account,)).fetchall()
         if len(rows) == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.backend.NotFound('Account not found')
         return rows[0][0]
 
     def delete_queues(self, account, filters=None):
@@ -223,14 +223,14 @@ class Backend(burrow.backend.Backend):
             count += 1
             yield row
         if count == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.backend.NotFound('Queue not found')
 
     def _get_queue(self, account_rowid, queue):
         '''Get the rowid for a given queue ID.'''
         query = 'SELECT rowid FROM queues WHERE account=? AND queue=?'
         rows = self.db.execute(query, (account_rowid, queue)).fetchall()
         if len(rows) == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.backend.NotFound('Queue not found')
         return rows[0][0]
 
     @burrow.backend.wait_without_attributes
@@ -323,7 +323,7 @@ class Backend(burrow.backend.Backend):
             count += 1
             yield row
         if count == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.backend.NotFound('Message not found')
 
     def _get_message(self, queue_rowid, message, full=False):
         '''Get the rowid for a given message ID.'''
@@ -334,7 +334,7 @@ class Backend(burrow.backend.Backend):
         query += ' FROM messages WHERE queue=? AND message=?'
         rows = self.db.execute(query, (queue_rowid, message)).fetchall()
         if len(rows) == 0:
-            raise burrow.backend.NotFound()
+            raise burrow.backend.NotFound('Message not found')
         if full:
             return rows[0]
         return rows[0][0]
