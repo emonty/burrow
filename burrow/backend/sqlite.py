@@ -30,6 +30,8 @@ MAXIMUM_PARAMETERS = 990
 
 
 class Backend(burrow.backend.Backend):
+    '''Backend implemention that uses SQLite to store the account, queue,
+    and message data.'''
 
     def __init__(self, config):
         super(Backend, self).__init__(config)
@@ -83,6 +85,8 @@ class Backend(burrow.backend.Backend):
             self._delete_accounts(ids)
 
     def _delete_accounts(self, ids):
+        '''Delete all accounts with the given row IDs, which includes
+        cascading deletes for all queues and messages as well.'''
         ids = tuple(ids)
         query_values = '(?' + (',?' * (len(ids) - 1)) + ')'
         queue_ids = []
@@ -103,6 +107,7 @@ class Backend(burrow.backend.Backend):
         self.db.execute(query + query_values, ids)
 
     def _detail(self, row, detail):
+        '''Format the account or queue detail from the given row.'''
         if detail == 'id':
             return row[0]
         elif detail == 'all':
@@ -117,6 +122,8 @@ class Backend(burrow.backend.Backend):
                 yield self._detail(row, detail)
 
     def _get_accounts(self, query, filters):
+        '''Build the SQL query to get accounts and check for empty
+        responses.'''
         values = tuple()
         if filters is None:
             marker = None
@@ -142,6 +149,7 @@ class Backend(burrow.backend.Backend):
             raise burrow.backend.NotFound()
 
     def _get_account(self, account):
+        '''Get the rowid for a given account ID.'''
         query = 'SELECT rowid FROM accounts WHERE account=?'
         rows = self.db.execute(query, (account,)).fetchall()
         if len(rows) == 0:
@@ -165,6 +173,8 @@ class Backend(burrow.backend.Backend):
         self._check_empty_account(account_rowid)
 
     def _delete_queues(self, ids):
+        '''Delete all queues with the given row IDs, which includes
+        cascading deletes for all messages as well.'''
         ids = tuple(ids)
         query_values = '(?' + (',?' * (len(ids) - 1)) + ')'
         query = 'DELETE FROM messages WHERE queue IN '
@@ -173,6 +183,7 @@ class Backend(burrow.backend.Backend):
         self.db.execute(query + query_values, ids)
 
     def _check_empty_account(self, account_rowid):
+        '''Check to see if an account is empty, and if so, remove it.'''
         query = 'SELECT rowid FROM queues WHERE account=? LIMIT 1'
         if len(self.db.execute(query, (account_rowid,)).fetchall()) == 0:
             query = 'DELETE FROM accounts WHERE rowid=?'
@@ -187,6 +198,8 @@ class Backend(burrow.backend.Backend):
                 yield self._detail(row, detail)
 
     def _get_queues(self, query, account_rowid, filters):
+        '''Build the SQL query to get queues and check for empty
+        responses.'''
         query += ' WHERE account=?'
         values = (account_rowid,)
         if filters is None:
@@ -213,6 +226,7 @@ class Backend(burrow.backend.Backend):
             raise burrow.backend.NotFound()
 
     def _get_queue(self, account_rowid, queue):
+        '''Get the rowid for a given queue ID.'''
         query = 'SELECT rowid FROM queues WHERE account=? AND queue=?'
         rows = self.db.execute(query, (account_rowid, queue)).fetchall()
         if len(rows) == 0:
@@ -238,18 +252,21 @@ class Backend(burrow.backend.Backend):
         self._check_empty_queue(account_rowid, queue_rowid)
 
     def _delete_messages(self, ids):
+        '''Delete all messages with the given row IDs.'''
         ids = tuple(ids)
         query_values = '(?' + (',?' * (len(ids) - 1)) + ')'
         query = 'DELETE FROM messages WHERE rowid IN '
         self.db.execute(query + query_values, ids)
 
     def _check_empty_queue(self, account_rowid, queue_rowid):
+        '''Check to see if a queue is empty, and if so, remove it.'''
         query = 'SELECT rowid FROM messages WHERE queue=? LIMIT 1'
         if len(self.db.execute(query, (queue_rowid,)).fetchall()) == 0:
             self.db.execute('DELETE FROM queues WHERE rowid=?', (queue_rowid,))
             self._check_empty_account(account_rowid)
 
     def _message_detail(self, row, detail):
+        '''Format the message detail from the given row.'''
         if detail == 'id':
             return row[0]
         elif detail == 'body':
@@ -277,6 +294,8 @@ class Backend(burrow.backend.Backend):
                 yield self._message_detail(row, detail)
 
     def _get_messages(self, query, queue_rowid, filters):
+        '''Build the SQL query to get messages and check for empty
+        responses.'''
         query += ' WHERE queue=?'
         values = (queue_rowid,)
         if filters is None:
@@ -307,6 +326,7 @@ class Backend(burrow.backend.Backend):
             raise burrow.backend.NotFound()
 
     def _get_message(self, queue_rowid, message, full=False):
+        '''Get the rowid for a given message ID.'''
         if full:
             query = 'SELECT rowid,message,ttl,hide,body'
         else:
@@ -348,6 +368,7 @@ class Backend(burrow.backend.Backend):
             self.notify(account, queue)
 
     def _update_messages(self, ttl, hide, ids):
+        '''Build the SQL query to update messages.'''
         query = 'UPDATE messages SET '
         query_values = ' WHERE rowid IN (?' + (',?' * (len(ids) - 1)) + ')'
         values = []

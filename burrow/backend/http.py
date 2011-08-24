@@ -109,6 +109,7 @@ class Backend(burrow.backend.Backend):
         pass
 
     def _add_parameters(self, url, attributes=None, filters=None):
+        '''Add attributes and filters on to the URL as query parameters.'''
         separator = '?'
         if attributes is not None:
             parameters = ['ttl', 'hide']
@@ -127,6 +128,7 @@ class Backend(burrow.backend.Backend):
         return url
 
     def _request(self, method, url, *args, **kwargs):
+        '''Perform the request and handle the response.'''
         connection = httplib.HTTPConnection(*self.server)
         connection.request(method, '/v1.0' + url, *args, **kwargs)
         response = connection.getresponse()
