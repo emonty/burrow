@@ -20,7 +20,7 @@ import gettext
 from burrow.client import Client, Account, Queue
 from burrow.server import Server
 
-__version__ = '2011.2'
+__version__ = '2011.3'
 
 # This installs the _(...) function as a built-in so all other modules
 # don't need to.

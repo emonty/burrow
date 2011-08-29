@@ -257,7 +257,7 @@ class Backend(burrow.common.Module):
             self.queues[queue] = eventlet.Queue()
         try:
             self.queues[queue].get(timeout=seconds)
-        except eventlet.Queue.Empty:
+        except eventlet.queue.Empty:
             pass
         if self.queues[queue].getting() == 0:
             del self.queues[queue]
