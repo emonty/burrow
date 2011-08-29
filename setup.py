@@ -64,7 +64,7 @@ setup(
     author='OpenStack, LLC.',
     author_email='openstack-admins@lists.launchpad.net',
     url='https://launchpad.net/burrow',
-    packages=find_packages(exclude=['test', 'bin']),
+    packages=find_packages(exclude=['bin', 'examples', 'test']),
     test_suite='nose.collector',
     cmdclass=cmdclass,
     install_requires=requirements,

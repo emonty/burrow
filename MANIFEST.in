@@ -1,5 +1,6 @@
 graft doc
 graft etc
+graft examples
 graft locale
 include Authors
 include ChangeLog
