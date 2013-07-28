@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,77 +15,73 @@
 '''Unittests for the sqlite backend.'''
 
 import ConfigParser
-import os
+
+import fixtures
 
 import burrow.backend.sqlite
-import test.backend
+from burrow.tests import backend
 
 
-class SQLiteBase(test.backend.Base):
+class SQLiteBase(backend.Base):
     '''Base test case for sqlite backend.'''
 
     def setUp(self):
+        super(SQLiteBase, self).setUp()
         config = (ConfigParser.ConfigParser(), 'test')
         self.backend = burrow.backend.sqlite.Backend(config)
         self.check_empty()
 
 
-class TestSQLiteAccounts(SQLiteBase, test.backend.TestAccounts):
+class TestSQLiteAccounts(SQLiteBase, backend.TestAccounts):
     '''Test case for accounts with sqlite backend.'''
     pass
 
 
-class TestSQLiteQueues(SQLiteBase, test.backend.TestQueues):
+class TestSQLiteQueues(SQLiteBase, backend.TestQueues):
     '''Test case for queues with sqlite backend.'''
     pass
 
 
-class TestSQLiteMessages(SQLiteBase, test.backend.TestMessages):
+class TestSQLiteMessages(SQLiteBase, backend.TestMessages):
     '''Test case for messages with sqlite backend.'''
     pass
 
 
-class TestSQLiteMessage(SQLiteBase, test.backend.TestMessage):
+class TestSQLiteMessage(SQLiteBase, backend.TestMessage):
     '''Test case for message with sqlite backend.'''
     pass
 
 
-class SQLiteFileBase(test.backend.Base):
+class SQLiteFileBase(backend.Base):
     '''Base test case for file-based sqlite backend.'''
 
     def setUp(self):
-        try:
-            os.unlink('TestSQLiteFile.db')
-        except OSError:
-            pass
+        super(SQLiteFileBase, self).setUp()
+        tempdir = self.useFixture(fixtures.TempDir()).path
         config = ConfigParser.ConfigParser()
         config.add_section('test')
-        config.set('test', 'url', 'sqlite://TestSQLiteFile.db')
+        config.set('test', 'url', 'sqlite://%s/TestSQLiteFile.db' % tempdir)
         config.set('test', 'synchronous', 'OFF')
         config = (config, 'test')
         self.backend = burrow.backend.sqlite.Backend(config)
         self.check_empty()
 
-    def tearDown(self):
-        self.check_empty()
-        os.unlink('TestSQLiteFile.db')
 
-
-class TestSQLiteFileAccounts(SQLiteFileBase, test.backend.TestAccounts):
+class TestSQLiteFileAccounts(SQLiteFileBase, backend.TestAccounts):
     '''Test case for accounts with file-based sqlite backend.'''
     pass
 
 
-class TestSQLiteFileQueues(SQLiteFileBase, test.backend.TestQueues):
+class TestSQLiteFileQueues(SQLiteFileBase, backend.TestQueues):
     '''Test case for queues with file-based sqlite backend.'''
     pass
 
 
-class TestSQLiteFileMessages(SQLiteFileBase, test.backend.TestMessages):
+class TestSQLiteFileMessages(SQLiteFileBase, backend.TestMessages):
     '''Test case for messages with file-based sqlite backend.'''
     pass
 
 
-class TestSQLiteFileMessage(SQLiteFileBase, test.backend.TestMessage):
+class TestSQLiteFileMessage(SQLiteFileBase, backend.TestMessage):
     '''Test case for message with file-based sqlite backend.'''
     pass

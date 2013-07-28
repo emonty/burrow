@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
 '''Common classes and functions for burrow.'''
 
 import logging
-import sys
 
 import burrow.config
+from burrow.openstack.common.gettextutils import _
 
 
 class Module(object):
@@ -51,17 +51,3 @@ def add_default_log_handler():
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     handler.setFormatter(logging.Formatter(log_format))
     root_log.addHandler(handler)
-
-
-def import_class(module_name, class_name=None):
-    '''Import a class given a full module.class name or seperate
-    module and options. If no class_name is given, it is assumed to
-    be the last part of the module_name string.'''
-    if class_name is None:
-        module_name, _separator, class_name = module_name.rpartition('.')
-    try:
-        __import__(module_name)
-        return getattr(sys.modules[module_name], class_name)
-    except (ImportError, ValueError, AttributeError), exception:
-        raise ImportError(_('Class %s.%s cannot be found (%s)') %
-            (module_name, class_name, exception))

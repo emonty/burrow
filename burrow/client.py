@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ import urlparse
 
 import burrow.common
 import burrow.config
+from burrow.openstack.common import importutils
+
 
 # Default configuration values for this module.
 DEFAULT_BACKEND = 'burrow.backend.http'
@@ -54,7 +56,7 @@ class Client(object):
         '''Load backend given in the 'backend' option.'''
         backend = self.config.get('backend', DEFAULT_BACKEND)
         config = (self._config, backend)
-        return burrow.common.import_class(backend, 'Backend')(config)
+        return importutils.import_class(backend, 'Backend')(config)
 
     def __getattr__(self, name):
         return getattr(self.backend, name)

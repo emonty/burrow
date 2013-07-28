@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import routes.middleware
 import webob.dec
 
 import burrow.frontend
+from burrow.openstack.common.gettextutils import _
 
 # Default configuration values for this module.
 DEFAULT_HOST = '0.0.0.0'
@@ -59,7 +60,8 @@ class Frontend(burrow.frontend.Frontend):
         port = self.config.getint('port', DEFAULT_PORT)
         backlog = self.config.getint('backlog', DEFAULT_BACKLOG)
         socket = eventlet.listen((host, port), backlog=backlog)
-        self.log.info(_('Listening on %s:%d') % (host, port))
+        self.log.info(
+            _('Listening on %(host)s:%(port)d') % dict(host=host, port=port))
         if self.config.getboolean('ssl', DEFAULT_SSL):
             certfile = self.config.get('ssl_certfile', DEFAULT_SSL_CERTFILE)
             keyfile = self.config.get('ssl_keyfile', DEFAULT_SSL_KEYFILE)
@@ -186,10 +188,10 @@ class Frontend(burrow.frontend.Frontend):
                 body = body()
             if isinstance(body, types.GeneratorType):
                 body = list(body)
-        except burrow.InvalidArguments, exception:
+        except burrow.InvalidArguments as exception:
             status = 400
             body = exception.message
-        except burrow.NotFound, exception:
+        except burrow.NotFound as exception:
             status = 404
             body = exception.message
         if body == []:

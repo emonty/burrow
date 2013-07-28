@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -293,7 +293,7 @@ def wait(self, account, queue, filters, method):
             for message in method():
                 yield message
             return
-        except burrow.NotFound, exception:
+        except burrow.NotFound as exception:
             now = time.time()
             if seconds - now > 0:
                 self.wait(account, queue, seconds - now)

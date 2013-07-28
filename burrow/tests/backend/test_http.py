@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,33 +18,34 @@ tests the WSGI frontend as well.'''
 import ConfigParser
 
 import burrow.backend.http
-import test.backend
+from burrow.tests import backend
 
 
-class HTTPBase(test.backend.Base):
+class HTTPBase(backend.Base):
     '''Base test case for http backend.'''
 
     def setUp(self):
+        super(HTTPBase, self).setUp()
         config = (ConfigParser.ConfigParser(), 'test')
         self.backend = burrow.backend.http.Backend(config)
         self.check_empty()
 
 
-class TestHTTPAccounts(HTTPBase, test.backend.TestAccounts):
+class TestHTTPAccounts(HTTPBase, backend.TestAccounts):
     '''Test case for accounts with http backend.'''
     pass
 
 
-class TestHTTPQueues(HTTPBase, test.backend.TestQueues):
+class TestHTTPQueues(HTTPBase, backend.TestQueues):
     '''Test case for queues with http backend.'''
     pass
 
 
-class TestHTTPMessages(HTTPBase, test.backend.TestMessages):
+class TestHTTPMessages(HTTPBase, backend.TestMessages):
     '''Test case for messages with http backend.'''
     pass
 
 
-class TestHTTPMessage(HTTPBase, test.backend.TestMessage):
+class TestHTTPMessage(HTTPBase, backend.TestMessage):
     '''Test case for message with http backend.'''
     pass

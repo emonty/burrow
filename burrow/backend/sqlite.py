@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,19 +46,19 @@ class Backend(burrow.backend.Backend):
         self.db.isolation_level = None
         queries = [
             'CREATE TABLE IF NOT EXISTS accounts ('
-                'account VARCHAR(255) NOT NULL,'
-                'PRIMARY KEY (account))',
+            '    account VARCHAR(255) NOT NULL,'
+            '    PRIMARY KEY (account))',
             'CREATE TABLE IF NOT EXISTS queues ('
-                'account INT UNSIGNED NOT NULL,'
-                'queue VARCHAR(255) NOT NULL,'
-                'PRIMARY KEY (account, queue))',
+            '    account INT UNSIGNED NOT NULL,'
+            '    queue VARCHAR(255) NOT NULL,'
+            '    PRIMARY KEY (account, queue))',
             'CREATE TABLE IF NOT EXISTS messages ('
-                'queue INT UNSIGNED NOT NULL,'
-                'message VARCHAR(255) NOT NULL,'
-                'ttl INT UNSIGNED NOT NULL,'
-                'hide INT UNSIGNED NOT NULL,'
-                'body BLOB NOT NULL,'
-                'PRIMARY KEY (queue, message))']
+            '    queue INT UNSIGNED NOT NULL,'
+            '    message VARCHAR(255) NOT NULL,'
+            '    ttl INT UNSIGNED NOT NULL,'
+            '    hide INT UNSIGNED NOT NULL,'
+            '    body BLOB NOT NULL,'
+            '    PRIMARY KEY (queue, message))']
         for query in queries:
             self.db.execute(query)
 

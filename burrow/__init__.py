@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,16 +15,18 @@
 '''Main module for burrow package. This installs the gettext function
 for all sub modules and packages.'''
 
-import gettext
+import pbr
 
-from burrow.client import Client, Account, Queue
-from burrow.server import Server
+from burrow import client
+from burrow import server
 
-__version__ = '2011.3'
+__version_info__ = pbr.version.VersionInfo("burrow")
+__version__ = __version_info__.version_string()
 
-# This installs the _(...) function as a built-in so all other modules
-# don't need to.
-gettext.install('burrow')
+Client = client.Client
+Account = client.Account
+Queue = client.Queue
+Server = server.Server
 
 
 class NotFound(Exception):

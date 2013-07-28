@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ the Python API.'''
 
 import httplib
 import json
-import unittest
+
+import testtools
 
 
-class TestWSGI(unittest.TestCase):
+class TestWSGI(testtools.TestCase):
     '''Test case for WSGI frontend.'''
 
     def test_versions(self):

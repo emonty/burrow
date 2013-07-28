@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
 
 '''Unittests for the Client API.'''
 
-import unittest
+import testtools
 
 import burrow
 
 
-class TestClient(unittest.TestCase):
+class TestClient(testtools.TestCase):
     '''Test case for Client API.'''
 
     def test_client(self):

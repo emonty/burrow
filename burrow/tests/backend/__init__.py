@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,16 +14,16 @@
 
 '''Unittests for burrow backends.'''
 
-import time
-import unittest
-
 import eventlet
 eventlet.monkey_patch(socket=True)
+
+import testtools
+import time
 
 import burrow.backend
 
 
-class Base(unittest.TestCase):
+class Base(testtools.TestCase):
     '''Base test case.'''
 
     def __init__(self, *args, **kwargs):
@@ -32,10 +32,8 @@ class Base(unittest.TestCase):
         self.success = False
 
     def setUp(self):
-        self.check_empty()
-
-    def tearDown(self):
-        self.check_empty()
+        super(Base, self).setUp()
+        self.addCleanup(self.check_empty)
 
     def check_empty(self):
         '''Ensure the backend is empty before, used before and after

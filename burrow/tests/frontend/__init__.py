@@ -1,5 +1,4 @@
-#!/bin/sh
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# If ../burrow/__init__.py exists, add ../ to the Python search path so
-# that it will override whatever may be installed in the default Python
-# search path.
-script_dir=`dirname $0`
-if [ -f "$script_dir/../burrow/__init__.py" ]
-then
-    PYTHONPATH="$script_dir/..:$PYTHONPATH"
-    export PYTHONPATH
-fi
-
-/usr/bin/env python -m burrow.shell $*
+'''Unittests for burrow frontends.'''

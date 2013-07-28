@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,14 +15,16 @@
 '''
 Burrow command line client and shell.
 '''
+from __future__ import print_function
 
-import pwd
 import optparse
 import os
+import pwd
 import sys
 import types
 
 import burrow
+from burrow.openstack.common.gettextutils import _
 
 
 class Shell(object):
@@ -114,8 +116,8 @@ class Shell(object):
             for command in self._get_command():
                 try:
                     self.run_command(command[0], command[1:])
-                except burrow.NotFound, exception:
-                    print exception
+                except burrow.NotFound as exception:
+                    print(exception)
         else:
             self.run_command(self.args[0], self.args[1:])
 
@@ -128,7 +130,7 @@ class Shell(object):
         try:
             # Try importing readline to make raw_input functionality more
             # user friendly.
-            import readline
+            import readline  # flake8: noqa
         except ImportError:
             pass
         while True:
@@ -154,12 +156,12 @@ class Shell(object):
         '''Try running a command with the given arguments.'''
         section = self._get_section(command)
         if section is None:
-            print _('Command not found: %s') % command
+            print(_('Command not found: %s') % command)
             return
         if len(args) != len(section['args']):
             for arg in section['args']:
                 command += ' <%s>' % arg
-            print _('Wrong number of arguments: %s') % command
+            print(_('Wrong number of arguments: %s') % command)
             return
         if section.get('account', None):
             args.insert(0, self.options.account)
@@ -208,26 +210,26 @@ class Shell(object):
                 if isinstance(item, dict):
                     self._print_message(item)
                 else:
-                    print item
+                    print(item)
         elif isinstance(result, dict):
             self._print_message(result)
         elif result is not None:
-            print result
+            print(result)
 
     def _print_message(self, item):
         '''Format and print message.'''
-        print 'id =', item['id']
+        print('id =', item['id'])
         for key, value in item.iteritems():
             if key != 'id':
-                print '    ', key, '=', value
+                print('    ', key, '=', value)
 
     def print_help(self, print_options_help=True):
         '''Print the parser generated help along with burrow command help.'''
         if print_options_help:
             self.parser.print_help()
-            print
+            print()
         for section in self.sections:
-            print '%s commands:' % section['name']
+            print('%s commands:' % section['name'])
             for command in section['commands']:
                 help_string = ''
                 if section.get('filters', None):
@@ -236,9 +238,12 @@ class Shell(object):
                     help_string += ' [attributes]'
                 for arg in section['args']:
                     help_string += ' <%s>' % arg
-                print '    %s%s' % (command, help_string)
-            print
+                print('    %s%s' % (command, help_string))
+            print()
 
+
+def main():
+    return Shell().run()
 
 if __name__ == '__main__':
-    Shell().run()
+    main()

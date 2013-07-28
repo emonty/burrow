@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,18 +28,6 @@ def start_server():
     kill_server()
     pid = os.fork()
     if pid == 0:
-        try:
-            import coverage
-            cov = coverage.coverage(data_suffix=True)
-            cov.start()
-
-            def save_coverage(_signum, _frame):
-                '''Callback for signal to save coverage info to file.'''
-                cov.save()
-
-            signal.signal(signal.SIGUSR1, save_coverage)
-        except ImportError:
-            pass
         server = burrow.Server(add_default_log_handler=False)
         server.frontends[0].default_ttl = 0
         server.run()

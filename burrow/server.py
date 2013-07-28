@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # limitations under the License.
 
 '''Server module for burrow.'''
+from __future__ import print_function
 
 import sys
 
@@ -20,6 +21,8 @@ import eventlet
 
 import burrow.common
 import burrow.config
+from burrow.openstack.common.gettextutils import _
+from burrow.openstack.common import importutils
 
 # Default configuration values for this module.
 DEFAULT_BACKEND = 'burrow.backend.sqlite'
@@ -47,7 +50,7 @@ class Server(object):
         '''Load backend given in the 'backend' option.'''
         backend = self.config.get('backend', DEFAULT_BACKEND)
         config = (self._config, backend)
-        return burrow.common.import_class(backend, 'Backend')(config)
+        return importutils.import_class(backend, 'Backend')(config)
 
     def _import_frontends(self):
         '''Load frontends given in the 'frontends' option.'''
@@ -58,7 +61,7 @@ class Server(object):
             if len(frontend) == 1:
                 frontend.append(None)
             config = (self._config, frontend[0], frontend[1])
-            frontend = burrow.common.import_class(frontend[0], 'Frontend')
+            frontend = importutils.import_class(frontend[0], 'Frontend')
             frontend = frontend(config, self.backend)
             frontends.append(frontend)
         return frontends
@@ -80,8 +83,12 @@ class Server(object):
             pass
 
 
-if __name__ == '__main__':
+def main():
     if '-h' in sys.argv[1:] or '--help' in sys.argv[1:]:
-        print 'Usage: burrowd [config files]'
+        print('Usage: burrowd [config files]')
         sys.exit(1)
-    Server(sys.argv[1:]).run()
+    return(Server(sys.argv[1:]).run())
+
+
+if __name__ == '__main__':
+    main()

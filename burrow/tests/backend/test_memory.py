@@ -1,4 +1,4 @@
-# Copyright (C) 2011 OpenStack LLC.
+# Copyright (C) 2011 OpenStack Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,33 +17,34 @@
 import ConfigParser
 
 import burrow.backend.memory
-import test.backend
+from burrow.tests import backend
 
 
-class MemoryBase(test.backend.Base):
+class MemoryBase(backend.Base):
     '''Base test case for memory backend.'''
 
     def setUp(self):
+        super(MemoryBase, self).setUp()
         config = (ConfigParser.ConfigParser(), 'test')
         self.backend = burrow.backend.memory.Backend(config)
         self.check_empty()
 
 
-class TestMemoryAccounts(MemoryBase, test.backend.TestAccounts):
+class TestMemoryAccounts(MemoryBase, backend.TestAccounts):
     '''Test case for accounts with memory backend.'''
     pass
 
 
-class TestMemoryQueues(MemoryBase, test.backend.TestQueues):
+class TestMemoryQueues(MemoryBase, backend.TestQueues):
     '''Test case for queues with memory backend.'''
     pass
 
 
-class TestMemoryMessages(MemoryBase, test.backend.TestMessages):
+class TestMemoryMessages(MemoryBase, backend.TestMessages):
     '''Test case for messages with memory backend.'''
     pass
 
 
-class TestMemoryMessage(MemoryBase, test.backend.TestMessage):
+class TestMemoryMessage(MemoryBase, backend.TestMessage):
     '''Test case for message with memory backend.'''
     pass
