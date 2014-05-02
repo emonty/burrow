@@ -8,3 +8,5 @@ sphinx>=1.1.2
 oslo.sphinx
 testrepository>=0.0.13
 testtools>=0.9.27
+
+Multi-file>1.0
